@@ -1,0 +1,3 @@
+[submodule "extern/PixelWindow"]
+	path = extern/PixelWindow
+	url = https://github.com/JulianWeidert/PixelWindow.git
