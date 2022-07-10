@@ -1,22 +1,31 @@
 
 #include <iostream>
 
+#include <SoftwareRenderer/RenderPipeline.h>
+
 #include <PixelWindow/PixelWindow.h>
+
 
 int main(){
 
 
-	pw::PixelWindow w = pw::PixelWindow(640, 480, "Hello SoftwareRenderer");
+	auto w1 = std::make_shared<pw::PixelWindow>(640, 480, "Hello SoftwareRenderer");
 
-	while (w.isActive()) {
+	sr::Renderer renderer;
+	renderer.setRenderSurface(w1);
 
-		w.beginFrame();
+	while (w1->isActive()) {
 
-		w.setBackgroundColor(0xFFFF0000);
+		w1->makeCurrent();
 
-		w.endFrame();
+		w1->beginFrame();
+		w1->setBackgroundColor(0xFFFF0000);
 
-		w.pollEvents();
+		renderer.renderLine(100, 100, 300, 300, 0xFFFF00FF);
+
+		w1->endFrame();
+
+		w1->pollEvents();
 	}
 	
 
