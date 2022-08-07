@@ -15,3 +15,4 @@ add_library(SoftwareRenderer ${SRC})
 target_include_directories(SoftwareRenderer PUBLIC "${INCLUDE_DIR}/..")
 
 target_link_libraries(SoftwareRenderer PixelWindow)
+target_link_libraries(SoftwareRenderer LeptonMath)

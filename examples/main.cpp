@@ -4,7 +4,7 @@
 #include <SoftwareRenderer/RenderPipeline.h>
 
 #include <PixelWindow/PixelWindow.h>
-
+#include <LeptonMath/Vector.h>
 
 int main(){
 
