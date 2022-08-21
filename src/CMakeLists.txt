@@ -5,8 +5,8 @@ set(INCLUDE_DIR "${SoftwareRenderer_SOURCE_DIR}/include/SoftwareRenderer")
 set(SRC 
 	"${INCLUDE_DIR}/RenderPipeline.h"
 	"${INCLUDE_DIR}/Renderer.h"
-	RenderPipeline.cpp
-	Renderer.cpp
+	"RenderPipeline.cpp"
+	"Renderer.cpp"
 )
 
 add_library(SoftwareRenderer ${SRC})
