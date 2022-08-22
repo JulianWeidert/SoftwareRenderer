@@ -1,7 +1,9 @@
 
 #include <iostream>
+#include <vector>
 
 #include <SoftwareRenderer/RenderPipeline.h>
+#include <SoftwareRenderer/DataBuffer.h>
 
 #include <PixelWindow/PixelWindow.h>
 #include <LeptonMath/Vector.h>
@@ -13,6 +15,16 @@ int main(){
 
 	sr::Renderer renderer;
 	renderer.setRenderSurface(w1);
+
+	std::vector<float> triangle = { 
+		0, 0.5f,
+		0.5f, -0.5f,
+		-0.5f, -0.5f
+	};
+
+	sr::FloatDataBuffer<2> buffer { triangle };
+
+	for (int i = 0; i < buffer.getAttributeCount(); ++i) std::cout << buffer.getVertexAttribute(i) << std::endl;
 
 	while (w1->isActive()) {
 
