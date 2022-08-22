@@ -29,6 +29,12 @@ int main(){
 		-0.5f, -0.5f, 0.0f
 	};
 
+	sr::RenderPipeline pipeline;
+	pipeline.setRenderSurface(w1);
+	
+	auto id = pipeline.bufferFloatData<3>(triangle);
+	std::cout << id << std::endl;
+
 	sr::FloatDataBuffer<3> buffer { triangle };
 
 	using vec4 = lm::Vector4f;
