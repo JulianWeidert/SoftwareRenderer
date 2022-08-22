@@ -31,6 +31,10 @@ namespace sr {
 		void renderLine(const Point2D& begin, const Point2D& end, int color);
 		void renderTriangleWireframe(const Point2D& p1, const Point2D& p2, const Point2D& p3, int color);
 		void renderTriangleWireframe(const Vertex& v1, const Vertex& v2, const Vertex& v3);
+
+
+		void render(RenderMode mode, const std::vector<Vertex>& vertices);
+		//void renderIndexed(RenderMode mode, const std::vector<Vertex>& vertices, const IntegerDataBuffer<3>& indices); // Implemented later
 	};
 
 }

@@ -51,7 +51,7 @@ namespace sr {
 		}
 
 		// Render triangles
-
+		this->renderer.render(mode, transformedVertices);
 	}
 
 }

@@ -87,4 +87,20 @@ namespace sr {
 		this->renderTriangleWireframe(fb, v1, v2, v3);
 	}
 
+
+	void Renderer::render(RenderMode mode, const std::vector<Vertex>& vertices) {
+		auto fb = this->frameBuffer.lock();
+		if (fb == nullptr) return;
+
+		if (mode == RenderMode::TRIANGLE) {
+			// TODO Render Triangle (implemented later)
+		}
+		else if (mode == RenderMode::TRIANGLE_WIREFRAME) {
+			// Render Wireframe
+			for (size_t i = 0; i < vertices.size(); i += 3) {
+				this->renderTriangleWireframe(fb, vertices[i], vertices[i + 1], vertices[i + 2]);
+			}
+		}
+	}
+
 }

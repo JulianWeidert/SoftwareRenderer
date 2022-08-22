@@ -22,13 +22,14 @@ int main(){
 
 	auto w1 = std::make_shared<pw::PixelWindow>(640, 480, "Hello SoftwareRenderer");
 
-	sr::Renderer renderer;
-	renderer.setRenderSurface(w1);
-
 	std::vector<float> triangle = { 
-		0, 0.5f, 0.0f,
+		0.0f, 0.5f, 0.0f,
 		0.5f, -0.5f, 0.0f,
-		-0.5f, -0.5f, 0.0f
+		-0.5f, -0.5f, 0.0f,
+
+		0.5f, -0.5f, 0.0f,
+		-0.5f, -0.5f, 0.0f,
+		0.0f, -1.0f, 0.0f
 	};
 
 	sr::RenderPipeline pipeline;
@@ -44,7 +45,6 @@ int main(){
 	pipeline.bindVertexShader(vs);
 
 
-	sr::FloatDataBuffer<3> buffer { triangle };
 
 	using vec4 = lm::Vector4f;
 
@@ -55,13 +55,7 @@ int main(){
 		w1->beginFrame();
 		w1->setBackgroundColor(0xFFFF0000);
 
-		sr::Vertex v1 { vec4(buffer.getVertexAttribute(0), 1) };
-		sr::Vertex v2 { vec4(buffer.getVertexAttribute(1), 1) };
-		sr::Vertex v3 { vec4(buffer.getVertexAttribute(2), 1) };
-
-		//renderer.renderTriangleWireframe({ 100,100 }, { 200, 300 }, {300, 100}, 0xFFFF00FF);
-		renderer.renderTriangleWireframe(v1, v2, v3);
-		pipeline.draw(sr::RenderMode::TRIANGLE_WIREFRAME, 3);
+		pipeline.draw(sr::RenderMode::TRIANGLE_WIREFRAME, triangle.size() / 3);
 
 		w1->endFrame();
 
