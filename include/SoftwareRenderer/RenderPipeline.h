@@ -5,6 +5,7 @@
 
 #include "SoftwareRenderer/Renderer.h"
 #include "DataBuffer.h"
+#include "BufferArray.h"
 
 namespace sr {
 
@@ -21,15 +22,23 @@ namespace sr {
 		std::vector<std::unique_ptr<FloatDataBuffer<3>>> buffer3f;
 		std::vector<std::unique_ptr<FloatDataBuffer<4>>> buffer4f;
 
+		std::vector<BufferArray> bufferArrays;
+
+		int currentBufferArray = -1;
+
 	public:
 		
-		template<size_t layout>
-		int bufferFloatData(const std::vector<float>& data);
-		
-		
+		int createBufferArray();
+		void bindBufferArray(int bufferArrayID);
+
+		void storeBufferInBufferArray(int index, int bufferID);
+
 		void setRenderSurface(std::weak_ptr<pw::PixelWindow> window);
 		
 		void draw(RenderMode mode, int vertexCount);
+
+		template<size_t layout>
+		int bufferFloatData(const std::vector<float>& data);
 	};
 
 

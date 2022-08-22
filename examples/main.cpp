@@ -32,8 +32,12 @@ int main(){
 	sr::RenderPipeline pipeline;
 	pipeline.setRenderSurface(w1);
 	
-	auto id = pipeline.bufferFloatData<3>(triangle);
-	std::cout << id << std::endl;
+	auto vao = pipeline.createBufferArray();
+	pipeline.bindBufferArray(vao);
+
+	auto positionBuffer = pipeline.bufferFloatData<3>(triangle);
+	pipeline.storeBufferInBufferArray(0, positionBuffer);
+
 
 	sr::FloatDataBuffer<3> buffer { triangle };
 
