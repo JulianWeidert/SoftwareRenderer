@@ -11,6 +11,11 @@ namespace sr {
 
 	typedef lm::Vector<int, 2> Point2D;
 
+	enum class RenderMode {
+		TRIANGLE,
+		TRIANGLE_WIREFRAME
+	};
+
 	class Renderer {
 	private:
 		std::weak_ptr<pw::PixelWindow> frameBuffer;

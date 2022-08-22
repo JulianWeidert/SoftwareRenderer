@@ -8,10 +8,13 @@ set(SRC
 	"${INCLUDE_DIR}/Vertex.h"
 	"${INCLUDE_DIR}/DataBuffer.h"
 	"${INCLUDE_DIR}/BufferArray.h"
+	"${INCLUDE_DIR}/VertexShader.h"
 	"RenderPipeline.cpp"
 	"Renderer.cpp"
 	"Vertex.cpp"
-	 "BufferArray.cpp")
+	"BufferArray.cpp"
+	"VertexShader.cpp"
+)
 
 add_library(SoftwareRenderer ${SRC})
 

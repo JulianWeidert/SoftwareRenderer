@@ -1,18 +1,20 @@
 
 #include <iostream>
 #include <vector>
-#include <any>
-
-#include <SoftwareRenderer/RenderPipeline.h>
-#include <SoftwareRenderer/DataBuffer.h>
 
 #include <PixelWindow/PixelWindow.h>
 #include <LeptonMath/Vector.h>
 
-template<size_t layout>
-const sr::FloatDataBuffer<layout>& get(int index, const std::vector<std::any>& data) {
-	return std::any_cast<sr::FloatDataBuffer<layout>>(data[index]);
-}
+#include <SoftwareRenderer/RenderPipeline.h>
+#include <SoftwareRenderer/VertexShader.h>
+
+
+class TestVertexShader : public sr::VertexShader {
+public:
+	void main() {
+		out_position = { 0,0,0,0 };
+	}
+};
 
 
 int main(){
@@ -38,6 +40,7 @@ int main(){
 	auto positionBuffer = pipeline.bufferFloatData<3>(triangle);
 	pipeline.storeBufferInBufferArray(0, positionBuffer);
 
+	std::shared_ptr<sr::VertexShader> vs = std::make_shared<TestVertexShader>();
 
 	sr::FloatDataBuffer<3> buffer { triangle };
 

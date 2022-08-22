@@ -3,27 +3,25 @@
 #include <vector>
 #include <memory>
 
-#include "SoftwareRenderer/Renderer.h"
+#include "Renderer.h"
 #include "DataBuffer.h"
 #include "BufferArray.h"
+#include "VertexShader.h"
 
 namespace sr {
 
-	enum class RenderMode {
-		TRIANGLE,
-		TRIANGLE_WIREFRAME
-	};
 
 	class RenderPipeline {
 	private:
 		Renderer renderer;
+
+		std::weak_ptr<VertexShader> vertexShader;
 
 		std::vector<std::unique_ptr<FloatDataBuffer<2>>> buffer2f;
 		std::vector<std::unique_ptr<FloatDataBuffer<3>>> buffer3f;
 		std::vector<std::unique_ptr<FloatDataBuffer<4>>> buffer4f;
 
 		std::vector<BufferArray> bufferArrays;
-
 		int currentBufferArray = -1;
 
 	public:
