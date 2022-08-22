@@ -21,7 +21,7 @@ int main(){
 		w1->beginFrame();
 		w1->setBackgroundColor(0xFFFF0000);
 
-		renderer.renderLine(100, 100, 300, 300, 0xFFFF00FF);
+		renderer.renderTriangleWireframe({ 100,100 }, { 200, 300 }, {300, 100}, 0xFFFF00FF);
 
 		w1->endFrame();
 
