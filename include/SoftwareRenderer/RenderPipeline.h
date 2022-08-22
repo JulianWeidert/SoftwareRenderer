@@ -8,6 +8,8 @@
 #include "BufferArray.h"
 #include "VertexShader.h"
 
+#include "BufferManager.h"
+
 namespace sr {
 
 
@@ -17,17 +19,18 @@ namespace sr {
 
 		std::weak_ptr<VertexShader> vertexShader;
 
-		std::vector<std::unique_ptr<FloatDataBuffer<2>>> buffer2f;
-		std::vector<std::unique_ptr<FloatDataBuffer<3>>> buffer3f;
-		std::vector<std::unique_ptr<FloatDataBuffer<4>>> buffer4f;
+		std::shared_ptr<BufferManager> bufferManager;
 
 		std::vector<BufferArray> bufferArrays;
 		int currentBufferArray = -1;
 
 	public:
 		
+		RenderPipeline();
+
 		int createBufferArray();
 		void bindBufferArray(int bufferArrayID);
+		void bindVertexShader(std::weak_ptr<VertexShader> vs);
 
 		void storeBufferInBufferArray(int index, int bufferID);
 
@@ -44,14 +47,14 @@ namespace sr {
 	int RenderPipeline::bufferFloatData(const std::vector<float>& data) {
 		switch (layout){
 		case 2: 
-			buffer2f.push_back(std::make_unique<FloatDataBuffer<2>>(data));
-			return buffer2f.size() - 1;
+			this->bufferManager->buffer2f.emplace_back(FloatDataBuffer<2>(data));
+			return this->bufferManager->buffer2f.size() - 1;
 		case 3:
-			buffer3f.push_back(std::make_unique<FloatDataBuffer<3>>(data));
-			return buffer3f.size() - 1;
+			this->bufferManager->buffer3f.emplace_back(FloatDataBuffer<3>(data));
+			return this->bufferManager->buffer3f.size() - 1;
 		case 4:
-			buffer4f.push_back(std::make_unique<FloatDataBuffer<4>>(data));
-			return buffer4f.size() - 1;
+			this->bufferManager->buffer4f.emplace_back(FloatDataBuffer<4>(data));
+			return this->bufferManager->buffer4f.size() - 1;
 		default:
 			assert(false, "Illegal data layout");
 			return -1;

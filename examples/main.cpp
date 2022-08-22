@@ -12,7 +12,7 @@
 class TestVertexShader : public sr::VertexShader {
 public:
 	void main() {
-		out_position = { 0,0,0,0 };
+		out_position = sr::vec4(this->getVertexAttribute<3>(0), 1);
 	}
 };
 
@@ -41,6 +41,8 @@ int main(){
 	pipeline.storeBufferInBufferArray(0, positionBuffer);
 
 	std::shared_ptr<sr::VertexShader> vs = std::make_shared<TestVertexShader>();
+	pipeline.bindVertexShader(vs);
+
 
 	sr::FloatDataBuffer<3> buffer { triangle };
 
@@ -59,6 +61,7 @@ int main(){
 
 		//renderer.renderTriangleWireframe({ 100,100 }, { 200, 300 }, {300, 100}, 0xFFFF00FF);
 		renderer.renderTriangleWireframe(v1, v2, v3);
+		pipeline.draw(sr::RenderMode::TRIANGLE_WIREFRAME, 3);
 
 		w1->endFrame();
 

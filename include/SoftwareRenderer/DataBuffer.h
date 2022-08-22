@@ -15,7 +15,7 @@ namespace sr {
 		DataBuffer() = default;
 		DataBuffer(const std::vector<T>& data);
 
-		lm::Vector<T, layout> getVertexAttribute(size_t index);
+		lm::Vector<T, layout> getVertexAttribute(size_t index) const;
 
 		size_t getAttributeCount() const;
 	};
@@ -35,7 +35,7 @@ namespace sr {
 	}
 
 	template<typename T, size_t layout>
-	lm::Vector<T, layout> DataBuffer<T, layout>::getVertexAttribute(size_t index) {
+	lm::Vector<T, layout> DataBuffer<T, layout>::getVertexAttribute(size_t index) const {
 		size_t begin = index * layout;
 		lm::Vector<T, layout> out{};
 		for (size_t i = 0; i < layout; ++i) out[i] = this->data[begin + i];

@@ -6,4 +6,8 @@ namespace sr {
 		this->buffers[index] = bufferID;
 	}
 
+	int BufferArray::getBufferID(int index) const {
+		return this->buffers[index];
+	}
+
 }

@@ -11,6 +11,7 @@ namespace sr {
 		BufferArray() = default;
 
 		void storeInAttributeList(int index, int bufferID);
+		int getBufferID(int index) const;
 	};
 
 }
