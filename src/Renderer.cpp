@@ -103,4 +103,20 @@ namespace sr {
 		}
 	}
 
+	void Renderer::renderIndexed(RenderMode mode, const std::vector<Vertex>& vertices, const IntegerDataBuffer<3>& indices) {
+		auto fb = this->frameBuffer.lock();
+		if (fb == nullptr) return;
+
+		if (mode == RenderMode::TRIANGLE) {
+			// TODO Render Triangle (implemented later)
+		}
+		else if (mode == RenderMode::TRIANGLE_WIREFRAME) {
+			// Render Wireframe
+			for (size_t i = 0; i < vertices.size(); ++i) {
+				auto triangleIndices = indices.getVertexAttribute(i);
+				this->renderTriangleWireframe(fb, vertices[triangleIndices[0]], vertices[triangleIndices[1]], vertices[triangleIndices[2]]);
+			}
+		}
+	}
+
 }

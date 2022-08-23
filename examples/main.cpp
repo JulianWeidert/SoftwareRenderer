@@ -68,33 +68,18 @@ int main(){
 	auto w1 = std::make_shared<pw::PixelWindow>(640, 640, "Hello SoftwareRenderer");
 
 
-
-	std::vector<float> triangle = { 
-		0.0f, 0.5f, 0.0f,
-		0.5f, -0.5f, 0.0f,
-		-0.5f, -0.5f, 0.0f,
-	};
-
-	std::vector<float> pyramid = {
-		// Front
+	std::vector<float> positions = {
 		0.0f,  1.0f,  0.0f,
 		0.5f,  0.0f,  0.5f,
-	   -0.5f,  0.0f,  0.5f,
-
-	   // Right
-		0.0f,  1.0f,  0.0f,
-		0.5f,  0.0f,  0.5f,
-		0.0f,  0.0f, -0.5f,
-
-		// Left
-		0.0f,  1.0f,  0.0f,
 	   -0.5f,  0.0f,  0.5f,
 	    0.0f,  0.0f, -0.5f,
+	};
 
-		// Bottom
-		0.5f,  0.0f,  0.5f,
-	   -0.5f,  0.0f,  0.5f,
-		0.0f,  0.0f, -0.5f,
+	std::vector<int> indices = {
+		0, 1, 2,
+		0, 2, 3,
+		0, 3, 1,
+		1, 2, 3,
 	};
 
 	sr::RenderPipeline pipeline;
@@ -103,8 +88,11 @@ int main(){
 	auto vao = pipeline.createBufferArray();
 	pipeline.bindBufferArray(vao);
 
-	auto positionBuffer = pipeline.bufferFloatData<3>(pyramid);
+	auto positionBuffer = pipeline.bufferFloatData<3>(positions);
 	pipeline.storeBufferInBufferArray(0, positionBuffer);
+
+	auto indexBuffer = pipeline.createIndexBuffer(indices);
+	pipeline.bindIndexBuffer(indexBuffer);
 
 	std::shared_ptr<TestVertexShader> vs = std::make_shared<TestVertexShader>();
 	pipeline.bindVertexShader(vs);
@@ -131,7 +119,7 @@ int main(){
 		w1->beginFrame();
 		w1->setBackgroundColor(0xFFFF0000);
 
-		pipeline.draw(sr::RenderMode::TRIANGLE_WIREFRAME, pyramid.size() / 3);
+		pipeline.draw(sr::RenderMode::TRIANGLE_WIREFRAME, positions.size() / 3);
 
 		w1->endFrame();
 

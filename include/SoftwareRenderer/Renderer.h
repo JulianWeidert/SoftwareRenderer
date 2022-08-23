@@ -5,7 +5,8 @@
 #include <PixelWindow/PixelWindow.h>
 #include <LeptonMath/Vector.h>
 
-#include "SoftwareRenderer/Vertex.h"
+#include "Vertex.h"
+#include "DataBuffer.h"
 
 namespace sr {
 
@@ -34,7 +35,7 @@ namespace sr {
 
 
 		void render(RenderMode mode, const std::vector<Vertex>& vertices);
-		//void renderIndexed(RenderMode mode, const std::vector<Vertex>& vertices, const IntegerDataBuffer<3>& indices); // Implemented later
+		void renderIndexed(RenderMode mode, const std::vector<Vertex>& vertices, const IntegerDataBuffer<3>& indices);
 	};
 
 }

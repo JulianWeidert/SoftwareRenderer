@@ -20,6 +20,7 @@ namespace sr {
 		std::weak_ptr<VertexShader> vertexShader;
 
 		std::shared_ptr<BufferManager> bufferManager;
+		std::vector<IntegerDataBuffer<3>> indexBufferList;
 
 		std::vector<BufferArray> bufferArrays;
 		int currentBufferArray = -1;
@@ -30,6 +31,11 @@ namespace sr {
 
 		int createBufferArray();
 		void bindBufferArray(int bufferArrayID);
+
+		int createIndexBuffer(const std::vector<int>& data);
+		void bindIndexBuffer(int bufferID);
+
+
 		void bindVertexShader(std::weak_ptr<VertexShader> vs);
 
 		void storeBufferInBufferArray(int index, int bufferID);

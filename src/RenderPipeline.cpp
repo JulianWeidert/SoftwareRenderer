@@ -17,13 +17,24 @@ namespace sr {
 		this->currentBufferArray = bufferArrayID;
 	}
 
+	int RenderPipeline::createIndexBuffer(const std::vector<int>& data) {
+		this->indexBufferList.emplace_back(IntegerDataBuffer<3>(data));
+		return this->indexBufferList.size() - 1;
+	}
+
+	void RenderPipeline::bindIndexBuffer(int bufferID) {
+		if (this->currentBufferArray == -1) return;
+		this->bufferArrays[this->currentBufferArray].setIndexBuffer(bufferID);
+	}
+
+
 	void RenderPipeline::bindVertexShader(std::weak_ptr<VertexShader> vs) {
 		this->vertexShader = vs;
 	}
 
 	void RenderPipeline::storeBufferInBufferArray(int index, int bufferID) {
 		if (this->currentBufferArray == -1) return;
-		this->bufferArrays[currentBufferArray].storeInAttributeList(index, bufferID);
+		this->bufferArrays[this->currentBufferArray].storeInAttributeList(index, bufferID);
 	}
 
 	void RenderPipeline::setRenderSurface(std::weak_ptr<pw::PixelWindow> window) {
@@ -50,8 +61,13 @@ namespace sr {
 			vs->reset();
 		}
 
-		// Render triangles
-		this->renderer.render(mode, transformedVertices);
+		if (this->bufferArrays[this->currentBufferArray].hasIndexBuffer()) {
+			this->renderer.renderIndexed(mode, transformedVertices, this->indexBufferList[this->bufferArrays[this->currentBufferArray].getIndexBuffer()]);
+		}
+		else {
+			this->renderer.render(mode, transformedVertices);
+		}
+
 	}
 
 }
