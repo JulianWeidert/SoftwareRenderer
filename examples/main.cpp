@@ -30,7 +30,7 @@ public:
 	void main() {
 		auto in_position = sr::vec4(this->getVertexAttribute<3>(0), 1.0f);
 		in_position = transformationMatrix * in_position;
-		in_position = in_position - sr::vec4({ 0, 0.5, 2.5, 0 });
+		in_position = in_position - sr::vec4({ 0, 0, 2.5, 0 });
 
 		out_position = projectionMatrix * in_position;
 		
@@ -65,21 +65,47 @@ lm::Matrix4x4f createRotationMatrixYAxis(float rad) {
 int main(){
 
 
-	auto w1 = std::make_shared<pw::PixelWindow>(640, 640, "Hello SoftwareRenderer");
+	auto w1 = std::make_shared<pw::PixelWindow>(640, 640, "SoftwareRenderer");
 
 
 	std::vector<float> positions = {
-		0.0f,  1.0f,  0.0f,
-		0.5f,  0.0f,  0.5f,
-	   -0.5f,  0.0f,  0.5f,
-	    0.0f,  0.0f, -0.5f,
+		// Front
+		 1.0f,  1.0f,  1.0f,
+		 1.0f, -1.0f,  1.0f,
+		-1.0f, -1.0f,  1.0f,
+		-1.0f,  1.0f,  1.0f,
+
+		// Back
+		 1.0f,  1.0f, -1.0f,
+		 1.0f, -1.0f, -1.0f,
+		-1.0f, -1.0f, -1.0f,
+		-1.0f,  1.0f, -1.0f,
 	};
 
 	std::vector<int> indices = {
+		// Front
 		0, 1, 2,
 		0, 2, 3,
-		0, 3, 1,
-		1, 2, 3,
+
+		// Right
+		4, 5, 1,
+		4, 1, 0,
+
+		// Left
+		3, 2, 6,
+		3, 6, 7,
+
+		// Bottom
+		1, 2, 6,
+		1, 6, 5,
+
+		// Top
+		4, 0, 3,
+		4, 3, 7,
+
+		// Back
+		7, 6, 5,
+		7, 5, 4
 	};
 
 	sr::RenderPipeline pipeline;

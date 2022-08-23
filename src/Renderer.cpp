@@ -112,7 +112,7 @@ namespace sr {
 		}
 		else if (mode == RenderMode::TRIANGLE_WIREFRAME) {
 			// Render Wireframe
-			for (size_t i = 0; i < vertices.size(); ++i) {
+			for (size_t i = 0; i < indices.getAttributeCount(); ++i) {
 				auto triangleIndices = indices.getVertexAttribute(i);
 				this->renderTriangleWireframe(fb, vertices[triangleIndices[0]], vertices[triangleIndices[1]], vertices[triangleIndices[2]]);
 			}
