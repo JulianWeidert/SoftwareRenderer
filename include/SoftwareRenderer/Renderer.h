@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <utility>
+#include <array>
 
 #include <PixelWindow/PixelWindow.h>
 #include <LeptonMath/Vector.h>
@@ -26,6 +28,11 @@ namespace sr {
 		void renderTriangleWireframe(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& v1, const Vertex& v2, const Vertex& v3);
 
 		Vertex transformViewport(const Vertex& vert, int viewportWidth, int viewportHeight) const;
+
+		Vertex lerp(const Vertex& v1, const Vertex& v2, float alpha) const;
+
+		std::pair<size_t, std::array<Vertex, 4>> clipTriangle(const Vertex& v1, const Vertex& v2, const Vertex& v3) const;
+
 	public:
 		void setRenderSurface(std::weak_ptr<pw::PixelWindow> window);
 

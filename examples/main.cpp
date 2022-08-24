@@ -62,6 +62,18 @@ lm::Matrix4x4f createRotationMatrixYAxis(float rad) {
 }
 
 
+lm::Matrix4x4f createProjectionMatrix(float near) {
+	lm::Matrix4x4f mat{};
+
+	mat[0][0] = 1;
+	mat[1][1] = 1;
+	mat[2][2] = -1;
+	mat[2][3] = -2 * near;
+	mat[3][2] = -1;
+
+	return mat;
+}
+
 int main(){
 
 
@@ -123,19 +135,15 @@ int main(){
 	std::shared_ptr<TestVertexShader> vs = std::make_shared<TestVertexShader>();
 	pipeline.bindVertexShader(vs);
 
-	lm::Matrix4x4f projMat{};
-	projMat[0][0] = 1;
-	projMat[1][1] = 1;
-	projMat[2][2] = 1;
-	projMat[3][2] = -1;
+	lm::Matrix4x4f projMat = createProjectionMatrix(3.25);
 
 	vs->setProjectionMatrix(projMat);
-	
-	float rad = 0;
+
+	float rad = 0.0;
 
 
 	while (w1->isActive()) {
-		rad += 0.005f;
+		rad += 0.001f;
 
 		auto transMat = createRotationMatrixYAxis(rad);
 		vs->setTransformationMatrix(transMat);
@@ -143,7 +151,7 @@ int main(){
 		w1->makeCurrent();
 
 		w1->beginFrame();
-		w1->setBackgroundColor(0xFFFF0000);
+		w1->setBackgroundColor(0x00000000);
 
 		pipeline.draw(sr::RenderMode::TRIANGLE_WIREFRAME, positions.size() / 3);
 
