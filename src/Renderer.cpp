@@ -119,10 +119,22 @@ namespace sr {
 		return std::make_pair<size_t, std::array<Vertex, 4>>(2, { in1, in2, v5, v4 });
 	}
 
+	lm::Vector3f Renderer::getSurfaceNormal(const Vertex& v1, const Vertex& v2, const Vertex& v3) const {
+		return lm::cross((v2.getPosition() - v1.getPosition()).getXYZ(), (v3.getPosition() - v1.getPosition()).getXYZ());
+	}
+
 	// Public
 
 	void Renderer::setRenderSurface(std::weak_ptr<pw::PixelWindow> window) {
 		this->frameBuffer = window;
+	}
+
+	void Renderer::enableBackfaceCulling() {
+		this->backfaceCullingEnabled = true;
+	}
+
+	void Renderer::disableBackfaceCulling() {
+		this->backfaceCullingEnabled = false;
 	}
 
 	void Renderer::renderLine(const Point2D& begin, const Point2D& end, int color) {
@@ -173,8 +185,19 @@ namespace sr {
 			for (size_t i = 0; i < indices.getAttributeCount(); ++i) {
 				auto triangleIndices = indices.getVertexAttribute(i);
 
+				const auto& v1 = vertices[triangleIndices[0]];
+				const auto& v2 = vertices[triangleIndices[1]];
+				const auto& v3 = vertices[triangleIndices[2]];
+
+				auto surfaceNormal = -this->getSurfaceNormal(v1, v2, v3);
+				
+				// Bachface culling
+				auto pos = lm::Vector3f(v2.getPosition().getXY(), v2.getPosition().getW());
+				auto dp = surfaceNormal * -pos;
+				if (dp > 0 && backfaceCullingEnabled) continue;
+
 				// Clipping
-				auto clipped = this->clipTriangle(vertices[triangleIndices[0]], vertices[triangleIndices[1]], vertices[triangleIndices[2]]);
+				auto clipped = this->clipTriangle(v1, v2, v3);
 				if (clipped.first == 0) continue;
 				const auto& verts = clipped.second;
 

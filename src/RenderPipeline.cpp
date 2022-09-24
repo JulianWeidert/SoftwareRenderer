@@ -41,6 +41,14 @@ namespace sr {
 		this->renderer.setRenderSurface(window);
 	}
 
+	void RenderPipeline::enableBackfaceCulling() {
+		this->renderer.enableBackfaceCulling();
+	}
+
+	void RenderPipeline::disableBackfaceCulling() {
+		this->renderer.disableBackfaceCulling();
+	}
+
 	void RenderPipeline::draw(RenderMode mode, int vertexCount) {
 		// Test if VertexShader is present
 		auto vs = this->vertexShader.lock();

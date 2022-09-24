@@ -28,7 +28,7 @@ public:
 	}
 
 	void main() {
-		auto in_position = sr::vec4(this->getVertexAttribute<3>(0), 1.0f);
+		auto in_position = sr::vec4(2 * this->getVertexAttribute<3>(0), 1.0f);
 		in_position = transformationMatrix * in_position;
 		in_position = in_position - sr::vec4({ 0, 0, 2.5, 0 });
 
@@ -74,6 +74,8 @@ lm::Matrix4x4f createProjectionMatrix(float near) {
 	return mat;
 }
 
+
+
 int main(){
 
 
@@ -81,44 +83,33 @@ int main(){
 
 
 	std::vector<float> positions = {
-		// Front
-		 1.0f,  1.0f,  1.0f,
-		 1.0f, -1.0f,  1.0f,
-		-1.0f, -1.0f,  1.0f,
-		-1.0f,  1.0f,  1.0f,
+			// Front
+			-0.5f, 0.5f, 0.5f, // Front Top Left
+			0.5f, 0.5f, 0.5f, // Front Top Right
+			0.5f,-0.5f, 0.5f, // Front Bottom Right
+			-0.5f,-0.5f, 0.5f, // Front Bottom Left
 
-		// Back
-		 1.0f,  1.0f, -1.0f,
-		 1.0f, -1.0f, -1.0f,
-		-1.0f, -1.0f, -1.0f,
-		-1.0f,  1.0f, -1.0f,
+			// Back
+			-0.5f, 0.5f,-0.5f, // Back Top Left
+			0.5f, 0.5f,-0.5f, // Back Top  Right
+			0.5f,-0.5f,-0.5f, // Back Bottom Right
+			-0.5f,-0.5f,-0.5f // Back Bottom Left
 	};
 
 	std::vector<int> indices = {
-		// Front
-		0, 1, 2,
-		0, 2, 3,
+			0,1,2, 0,2,3, // Front
 
-		// Right
-		4, 5, 1,
-		4, 1, 0,
+			1,5,6, 1,6,2, // Right
 
-		// Left
-		3, 2, 6,
-		3, 6, 7,
+			5,4,7, 5,7,6, // Back
 
-		// Bottom
-		1, 2, 6,
-		1, 6, 5,
+			4,0,3, 4,3,7, // Left
 
-		// Top
-		4, 0, 3,
-		4, 3, 7,
+			4,5,1, 4,1,0, // Top
 
-		// Back
-		7, 6, 5,
-		7, 5, 4
+			3,2,6, 3,6,7 // Bottom
 	};
+
 
 	sr::RenderPipeline pipeline;
 	pipeline.setRenderSurface(w1);
@@ -135,12 +126,13 @@ int main(){
 	std::shared_ptr<TestVertexShader> vs = std::make_shared<TestVertexShader>();
 	pipeline.bindVertexShader(vs);
 
-	lm::Matrix4x4f projMat = createProjectionMatrix(3.25);
+	lm::Matrix4x4f projMat = createProjectionMatrix(1);
 
 	vs->setProjectionMatrix(projMat);
 
 	float rad = 0.0;
 
+	//pipeline.disableBackfaceCulling();
 
 	while (w1->isActive()) {
 		rad += 0.001f;

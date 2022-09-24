@@ -41,11 +41,15 @@ namespace sr {
 		void storeBufferInBufferArray(int index, int bufferID);
 
 		void setRenderSurface(std::weak_ptr<pw::PixelWindow> window);
-		
+		void enableBackfaceCulling();
+		void disableBackfaceCulling();
+
+
 		void draw(RenderMode mode, int vertexCount);
 
 		template<size_t layout>
 		int bufferFloatData(const std::vector<float>& data);
+
 	};
 
 
