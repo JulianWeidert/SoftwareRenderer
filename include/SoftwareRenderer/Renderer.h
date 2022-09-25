@@ -28,10 +28,17 @@ namespace sr {
 
 		void renderLine(const std::shared_ptr<pw::PixelWindow>& fb, int xBegin, int yBegin, int xEnd, int yEnd, int color);
 		void renderTriangleWireframe(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& v1, const Vertex& v2, const Vertex& v3);
+		void renderTriangle(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& v1, const Vertex& v2, const Vertex& v3);
+
+		void renderFlatTopTriangle(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& v1, const Vertex& v2, const Vertex& v3);
+		void renderFlatBottomTriangle(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& v1, const Vertex& v2, const Vertex& v3);
+		void renderLine(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& v1, const Vertex& v2, const Vertex& v3, float y, float xBegin, float xEnd);
 
 		Vertex transformViewport(const Vertex& vert, int viewportWidth, int viewportHeight) const;
+		std::array<std::reference_wrapper<const Vertex>, 3> sortVerticesY(const Vertex& v1, const Vertex& v2, const Vertex& v3) const;
 
 		Vertex lerp(const Vertex& v1, const Vertex& v2, float alpha) const;
+		Vertex interpolateTriangle(const Vertex& v1, const Vertex& v2, const Vertex& v3, float x, float y);
 
 		std::pair<size_t, std::array<Vertex, 4>> clipTriangle(const Vertex& v1, const Vertex& v2, const Vertex& v3) const;
 
@@ -45,6 +52,7 @@ namespace sr {
 		void renderLine(const Point2D& begin, const Point2D& end, int color);
 		void renderTriangleWireframe(const Point2D& p1, const Point2D& p2, const Point2D& p3, int color);
 		void renderTriangleWireframe(const Vertex& v1, const Vertex& v2, const Vertex& v3);
+		void renderTriangle(const Vertex& v1, const Vertex& v2, const Vertex& v3);
 
 
 		void render(RenderMode mode, const std::vector<Vertex>& vertices);

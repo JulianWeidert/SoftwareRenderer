@@ -130,7 +130,7 @@ int main(){
 
 	vs->setProjectionMatrix(projMat);
 
-	float rad = 0.0;
+	float rad = 1.0;
 
 	//pipeline.disableBackfaceCulling();
 
@@ -145,7 +145,7 @@ int main(){
 		w1->beginFrame();
 		w1->setBackgroundColor(0x00000000);
 
-		pipeline.draw(sr::RenderMode::TRIANGLE_WIREFRAME, positions.size() / 3);
+		pipeline.draw(sr::RenderMode::TRIANGLE, positions.size() / 3);
 
 		w1->endFrame();
 
