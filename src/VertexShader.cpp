@@ -4,6 +4,7 @@ namespace sr {
 
 	void VertexShader::reset() {
 		out_position = {};
+		out_color = {};
 	}
 
 }

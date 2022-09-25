@@ -32,6 +32,10 @@ namespace sr {
 		this->vertexShader = vs;
 	}
 
+	void RenderPipeline::bindFragmentShader(std::weak_ptr<FragmentShader> fs) {
+		this->renderer.bindFragmentShader(fs);
+	}
+
 	void RenderPipeline::storeBufferInBufferArray(int index, int bufferID) {
 		if (this->currentBufferArray == -1) return;
 		this->bufferArrays[this->currentBufferArray].storeInAttributeList(index, bufferID);
@@ -65,7 +69,7 @@ namespace sr {
 		for (size_t i = 0; i < vertexCount; ++i) {
 			vs->vertexID = i;
 			vs->main();
-			transformedVertices.push_back({ vs->out_position });
+			transformedVertices.push_back({ vs->out_position, vs->out_color });
 			vs->reset();
 		}
 

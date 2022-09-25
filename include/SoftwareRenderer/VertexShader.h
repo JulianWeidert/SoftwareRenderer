@@ -24,6 +24,7 @@ namespace sr {
 		size_t vertexID = 0;
 
 		vec4 out_position;
+		vec4 out_color;
 
 		virtual void main() = 0;
 		
@@ -31,6 +32,8 @@ namespace sr {
 
 		template<size_t layout>
 		lm::Vectorf<layout> getVertexAttribute(int index);
+	public:
+		virtual ~VertexShader() = default;
 	};
 
 	// TODO Boundchecking

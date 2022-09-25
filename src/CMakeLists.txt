@@ -9,12 +9,14 @@ set(SRC
 	"${INCLUDE_DIR}/DataBuffer.h"
 	"${INCLUDE_DIR}/BufferArray.h"
 	"${INCLUDE_DIR}/VertexShader.h"
+	"${INCLUDE_DIR}/FragmentShader.h"
 	"RenderPipeline.cpp"
 	"Renderer.cpp"
 	"Vertex.cpp"
 	"BufferArray.cpp"
 	"VertexShader.cpp"
-)
+	"FragmentShader.cpp"
+ )
 
 add_library(SoftwareRenderer ${SRC})
 

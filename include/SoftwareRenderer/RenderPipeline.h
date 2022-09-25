@@ -7,6 +7,7 @@
 #include "DataBuffer.h"
 #include "BufferArray.h"
 #include "VertexShader.h"
+#include "FragmentShader.h"
 
 #include "BufferManager.h"
 
@@ -37,6 +38,7 @@ namespace sr {
 
 
 		void bindVertexShader(std::weak_ptr<VertexShader> vs);
+		void bindFragmentShader(std::weak_ptr<FragmentShader> fs);
 
 		void storeBufferInBufferArray(int index, int bufferID);
 

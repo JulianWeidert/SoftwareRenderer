@@ -42,14 +42,10 @@ namespace sr {
 		const int width = fb->getWidth();
 		const int height = fb->getHeight();
 
-		//const auto pos1 = this->transformViewport(v1, width, height).getPosition();
-		//const auto pos2 = this->transformViewport(v2, width, height).getPosition();
-		//const auto pos3 = this->transformViewport(v3, width, height).getPosition();
+		const auto pos1 = this->transformViewport(v1, width, height).getPosition();
+		const auto pos2 = this->transformViewport(v2, width, height).getPosition();
+		const auto pos3 = this->transformViewport(v3, width, height).getPosition();
 
-		const auto pos1 = v1.getPosition();
-		const auto pos2 = v2.getPosition();
-		const auto pos3 = v3.getPosition();
-		
 		this->renderLine(fb, pos1.getX(), pos1.getY(), pos2.getX(), pos2.getY(), 0xFFFFFFFF);
 		this->renderLine(fb, pos2.getX(), pos2.getY(), pos3.getX(), pos3.getY(), 0xFFFFFFFF);
 		this->renderLine(fb, pos3.getX(), pos3.getY(), pos1.getX(), pos1.getY(), 0xFFFFFFFF);
@@ -138,15 +134,26 @@ namespace sr {
 		}
 	}
 
+	// try to vectorize later
 	void Renderer::renderLine(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& v1, const Vertex& v2, const Vertex& v3, float y, float xBegin, float xEnd) {
+		auto fs = this->fragmentShader.lock();
+		if (fs == nullptr) return;
+
 		for (float x = xBegin; x < xEnd; x += 1.0f) {
 			if (x >= fb->getWidth() || x < 0 || y >= fb->getHeight() || y < 0) continue;
 			
 			Vertex interpolated = interpolateTriangle(v1, v2, v3, x, y);
 
 			// invoke fragemntshader
+			fs->in_color = interpolated.getColor();
+			fs->in_position = interpolated.getPosition();
+			fs->main();
+
+			int color = this->convertColor(fs->out_color);
 			
-			fb->setPixel(int(x), int(y), 0xFF0000FF);
+			fb->setPixel(int(x), int(y), color);
+
+			fs->reset();
 		}
 	}
 
@@ -185,7 +192,8 @@ namespace sr {
 		return out;
 	}
 
-	Vertex Renderer::interpolateTriangle(const Vertex& v1, const Vertex& v2, const Vertex& v3, float x, float y) {
+	// Try to vectorize later
+	Vertex Renderer::interpolateTriangle(const Vertex& v1, const Vertex& v2, const Vertex& v3, float x, float y) const {
 		auto& p1 = v1.getPosition();
 		auto& p2 = v2.getPosition();
 		auto& p3 = v3.getPosition();
@@ -201,15 +209,28 @@ namespace sr {
 
 		float denom = dy1 * dx3 + dx1 * dy4;
 
-		float w1 = (dy1 * dx2 + dx1 * dy2) / denom;
-		float w2 = (dy3 * dx2 + dx3 * dy2) / denom;
-		float w3 = 1 - w1 - w2;
+		// vectorize max?
+		float w1 = std::max((dy1 * dx2 + dx1 * dy2) / denom, 0.0f);
+		float w2 = std::max((dy3 * dx2 + dx3 * dy2) / denom, 0.0f);
+		float w3 = std::max(1 - w1 - w2, 0.0f);
 
-		return {
-			w1 * v1.getPosition() + w2 * v2.getPosition() + w3 * v3.getPosition(), // interpolate position (not necesssary)
-			w1 * v1.getColor() + w2 * v2.getColor() + w3 * v3.getColor(), // interpolate color
-		};
+		Vertex v;
 
+		v.position = w1 * v1.getPosition() + w2 * v2.getPosition() + w3 * v3.getPosition();
+		v.color = w1 * v1.getColor() + w2 * v2.getColor() + w3 * v3.getColor();
+
+		return v;
+
+	}
+
+	int Renderer::convertColor(const lm::Vector4f& color) const {
+		auto c = 255.0f * color;
+
+		int r = int(c.getX()) & 0xFF;
+		int g = int(c.getY()) & 0xFF;
+		int b = int(c.getZ()) & 0xFF;
+		int a = int(c.getW()) & 0xFF;
+		return a << 24 | b << 16 | g << 8 | r; // rbga -> abgr
 	}
 
 	std::pair<size_t, std::array<Vertex, 4>> Renderer::clipTriangle(const Vertex& v1, const Vertex& v2, const Vertex& v3) const {
@@ -272,6 +293,10 @@ namespace sr {
 
 	void Renderer::disableBackfaceCulling() {
 		this->backfaceCullingEnabled = false;
+	}
+
+	void Renderer::bindFragmentShader(std::weak_ptr<FragmentShader> fs) {
+		this->fragmentShader = fs;
 	}
 
 	void Renderer::renderLine(const Point2D& begin, const Point2D& end, int color) {

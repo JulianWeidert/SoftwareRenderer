@@ -7,6 +7,7 @@
 
 #include <SoftwareRenderer/RenderPipeline.h>
 #include <SoftwareRenderer/VertexShader.h>
+#include <SoftwareRenderer/FragmentShader.h>
 
 
 class TestVertexShader : public sr::VertexShader {
@@ -33,7 +34,7 @@ public:
 		in_position = in_position - sr::vec4({ 0, 0, 2.5, 0 });
 
 		out_position = projectionMatrix * in_position;
-		
+		out_color = this->getVertexAttribute<4>(0);
 	}
 
 	void setProjectionMatrix(const lm::Matrix4x4f& mat) {
@@ -44,6 +45,14 @@ public:
 		this->transformationMatrix = mat;
 	}
 };
+
+class TestFragmentShader : public sr::FragmentShader {
+protected:
+	void main() {
+		this->out_color = this->in_color;
+	}
+};
+
 
 lm::Matrix4x4f createRotationMatrixYAxis(float rad) {
 	lm::Matrix4x4f mat{};
@@ -62,10 +71,10 @@ lm::Matrix4x4f createRotationMatrixYAxis(float rad) {
 }
 
 
-lm::Matrix4x4f createProjectionMatrix(float near) {
+lm::Matrix4x4f createProjectionMatrix(float near, int width, int height) {
 	lm::Matrix4x4f mat{};
 
-	mat[0][0] = 1;
+	mat[0][0] = float(height)/float(width);
 	mat[1][1] = 1;
 	mat[2][2] = -1;
 	mat[2][3] = -2 * near;
@@ -96,6 +105,19 @@ int main(){
 			-0.5f,-0.5f,-0.5f // Back Bottom Left
 	};
 
+	// RGBA
+	std::vector<float> colors = {
+		1.0f, 0.0f, 0.0f, 1.0f, 
+		0.0f, 1.0f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f, 1.0f,
+		1.0f, 0.0f, 0.0f, 1.0f,
+
+		0.0f, 1.0f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f, 1.0f,
+		1.0f, 0.0f, 0.0f, 1.0f,
+		0.0f, 1.0f, 0.0f, 1.0f
+	};
+
 	std::vector<int> indices = {
 			0,1,2, 0,2,3, // Front
 
@@ -120,15 +142,27 @@ int main(){
 	auto positionBuffer = pipeline.bufferFloatData<3>(positions);
 	pipeline.storeBufferInBufferArray(0, positionBuffer);
 
+	auto colorBuffer = pipeline.bufferFloatData<4>(colors);
+	pipeline.storeBufferInBufferArray(1, colorBuffer);
+
 	auto indexBuffer = pipeline.createIndexBuffer(indices);
 	pipeline.bindIndexBuffer(indexBuffer);
 
 	std::shared_ptr<TestVertexShader> vs = std::make_shared<TestVertexShader>();
 	pipeline.bindVertexShader(vs);
 
-	lm::Matrix4x4f projMat = createProjectionMatrix(1);
+	std::shared_ptr<TestFragmentShader> fs = std::make_shared<TestFragmentShader>();
+	pipeline.bindFragmentShader(fs);
+
+	lm::Matrix4x4f projMat = createProjectionMatrix(1, 640, 640);
 
 	vs->setProjectionMatrix(projMat);
+
+	w1->addResizeCallback([&](int w, int h) {
+		lm::Matrix4x4f projMat = createProjectionMatrix(1, w, h);
+		vs->setProjectionMatrix(projMat);
+	});
+
 
 	float rad = 1.0;
 
