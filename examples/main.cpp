@@ -31,7 +31,7 @@ public:
 	void main() {
 		auto in_position = sr::vec4(2 * this->getVertexAttribute<3>(0), 1.0f);
 		in_position = transformationMatrix * in_position;
-		in_position = in_position - sr::vec4({ 0, 0, 2.5, 0 });
+		in_position = in_position - sr::vec4({ 0, -1.5, 4.5, 0 });
 
 		out_position = projectionMatrix * in_position;
 		out_color = this->getVertexAttribute<4>(0);
@@ -55,11 +55,21 @@ protected:
 
 
 class TestGeometryShader : public sr::GeometryShader {
+private:
+	sr::vec3 lightPosition = { 100, 100, 100 };
+
 protected:
 	void main() {
-		static sr::vec4 white = { 1.0f, 1.0f, 1.0f, 1.0f };
+		
 
-		this->out_colors = {white, white, white};
+		//auto center = 0.3333f * (this->in_positions[0] + this->in_positions[1] + this->in_positions[2]);
+		auto lightDir = lightPosition - this->in_positions[0].getXYZ();
+
+		auto brightness = std::max(0.04f, this->in_surfaceNormal.getNormalized() * lightDir.getNormalized());
+
+		sr::vec4 outColor = { brightness, brightness, brightness, 1.0 };
+
+		this->out_colors = { outColor, outColor, outColor };
 		this->out_positions = this->in_positions;
 	}
 };
