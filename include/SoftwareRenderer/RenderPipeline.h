@@ -8,6 +8,7 @@
 #include "BufferArray.h"
 #include "VertexShader.h"
 #include "FragmentShader.h"
+#include "GeometryShader.h"
 
 #include "BufferManager.h"
 
@@ -39,6 +40,7 @@ namespace sr {
 
 		void bindVertexShader(std::weak_ptr<VertexShader> vs);
 		void bindFragmentShader(std::weak_ptr<FragmentShader> fs);
+		void bindGeometryShader(std::weak_ptr<GeometryShader> gs);
 
 		void storeBufferInBufferArray(int index, int bufferID);
 

@@ -36,6 +36,10 @@ namespace sr {
 		this->renderer.bindFragmentShader(fs);
 	}
 
+	void RenderPipeline::bindGeometryShader(std::weak_ptr<GeometryShader> gs) {
+		this->renderer.bindGeometryShader(gs);
+	}
+
 	void RenderPipeline::storeBufferInBufferArray(int index, int bufferID) {
 		if (this->currentBufferArray == -1) return;
 		this->bufferArrays[this->currentBufferArray].storeInAttributeList(index, bufferID);

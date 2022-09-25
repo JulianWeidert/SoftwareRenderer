@@ -139,7 +139,7 @@ namespace sr {
 		auto fs = this->fragmentShader.lock();
 		if (fs == nullptr) return;
 
-		for (float x = xBegin; x < xEnd; x += 1.0f) {
+		for (float x = xBegin; x <= xEnd; x += 1.0f) {
 			if (x >= fb->getWidth() || x < 0 || y >= fb->getHeight() || y < 0) continue;
 			
 			Vertex interpolated = interpolateTriangle(v1, v2, v3, x, y);
@@ -299,6 +299,10 @@ namespace sr {
 		this->fragmentShader = fs;
 	}
 
+	void Renderer::bindGeometryShader(std::weak_ptr<GeometryShader> gs) {
+		this->geometryShader = gs;
+	}
+
 	void Renderer::renderLine(const Point2D& begin, const Point2D& end, int color) {
 		auto fb = this->frameBuffer.lock();
 		if (fb == nullptr) return;
@@ -345,22 +349,46 @@ namespace sr {
 		auto fb = this->frameBuffer.lock();
 		if (fb == nullptr) return;
 
+		auto gs = this->geometryShader.lock();
+
 		if (mode == RenderMode::TRIANGLE) {
 			for (size_t i = 0; i < indices.getAttributeCount(); ++i) {
 				auto triangleIndices = indices.getVertexAttribute(i);
 
-				const auto& v1 = vertices[triangleIndices[0]];
-				const auto& v2 = vertices[triangleIndices[1]];
-				const auto& v3 = vertices[triangleIndices[2]];
+				//const auto& v1 = vertices[triangleIndices[0]];
+				//const auto& v2 = vertices[triangleIndices[1]];
+				//const auto& v3 = vertices[triangleIndices[2]];
+				std::reference_wrapper<const Vertex> v1 = vertices[triangleIndices[0]];
+				std::reference_wrapper<const Vertex> v2 = vertices[triangleIndices[1]];
+				std::reference_wrapper<const Vertex> v3 = vertices[triangleIndices[2]];
 
 				auto surfaceNormal = -this->getSurfaceNormal(v1, v2, v3);
 
 				// Backface culling
-				auto pos = lm::Vector3f(v2.getPosition().getXY(), v2.getPosition().getW());
+				auto pos = lm::Vector3f(v2.get().getPosition().getXY(), v2.get().getPosition().getW());
 				auto dp = surfaceNormal * -pos;
 				if (dp > 0 && backfaceCullingEnabled) continue;
 
-				// Clipping
+				// geometry shader
+				if (gs != nullptr) {
+					gs->in_positions = { v1.get().getPosition(), v2.get().getPosition(), v3.get().getPosition() };
+					gs->in_colors = { v1.get().getColor(), v2.get().getColor(), v3.get().getColor() };
+					gs->in_surfaceNormal = surfaceNormal;
+
+					gs->main();
+
+					const Vertex out1 = { gs->out_positions[0], gs->out_colors[0] };
+					const Vertex out2 = { gs->out_positions[1], gs->out_colors[1] };
+					const Vertex out3 = { gs->out_positions[2], gs->out_colors[2] };
+					
+					gs->reset();
+
+					v1 = out1;
+					v2 = out2;
+					v3 = out3;
+
+				}
+
 				auto clipped = this->clipTriangle(v1, v2, v3);
 				if (clipped.first == 0) continue;
 				const auto& verts = clipped.second;

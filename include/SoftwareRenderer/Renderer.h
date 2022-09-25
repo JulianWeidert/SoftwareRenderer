@@ -10,6 +10,7 @@
 #include "Vertex.h"
 #include "DataBuffer.h"
 #include "FragmentShader.h"
+#include "GeometryShader.h"
 
 namespace sr {
 
@@ -26,6 +27,7 @@ namespace sr {
 		// DepthBuffer for 3D
 
 		std::weak_ptr<FragmentShader> fragmentShader;
+		std::weak_ptr<GeometryShader> geometryShader;
 
 		bool backfaceCullingEnabled = true;
 
@@ -54,6 +56,7 @@ namespace sr {
 		void disableBackfaceCulling();
 
 		void bindFragmentShader(std::weak_ptr<FragmentShader> fs);
+		void bindGeometryShader(std::weak_ptr<GeometryShader> gs);
 
 		void renderLine(const Point2D& begin, const Point2D& end, int color);
 		void renderTriangleWireframe(const Point2D& p1, const Point2D& p2, const Point2D& p3, int color);

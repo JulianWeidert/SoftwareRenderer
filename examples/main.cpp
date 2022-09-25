@@ -54,6 +54,17 @@ protected:
 };
 
 
+class TestGeometryShader : public sr::GeometryShader {
+protected:
+	void main() {
+		static sr::vec4 white = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+		this->out_colors = {white, white, white};
+		this->out_positions = this->in_positions;
+	}
+};
+
+
 lm::Matrix4x4f createRotationMatrixYAxis(float rad) {
 	lm::Matrix4x4f mat{};
 
@@ -153,6 +164,9 @@ int main(){
 
 	std::shared_ptr<TestFragmentShader> fs = std::make_shared<TestFragmentShader>();
 	pipeline.bindFragmentShader(fs);
+
+	std::shared_ptr<TestGeometryShader> gs = std::make_shared<TestGeometryShader>();
+	pipeline.bindGeometryShader(gs);
 
 	lm::Matrix4x4f projMat = createProjectionMatrix(1, 640, 640);
 
