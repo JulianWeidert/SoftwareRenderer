@@ -11,6 +11,7 @@
 #include "DataBuffer.h"
 #include "FragmentShader.h"
 #include "GeometryShader.h"
+#include "ZBuffer.h"
 
 namespace sr {
 
@@ -24,7 +25,7 @@ namespace sr {
 	class Renderer {
 	private:
 		std::weak_ptr<pw::PixelWindow> frameBuffer;
-		// DepthBuffer for 3D
+		ZBuffer zBuffer;
 
 		std::weak_ptr<FragmentShader> fragmentShader;
 		std::weak_ptr<GeometryShader> geometryShader;
@@ -48,6 +49,8 @@ namespace sr {
 		std::pair<size_t, std::array<Vertex, 4>> clipTriangle(const Vertex& v1, const Vertex& v2, const Vertex& v3) const;
 
 		lm::Vector3f getSurfaceNormal(const Vertex& v1, const Vertex& v2, const Vertex& v3) const;
+
+		void checkZBufferSize();
 
 	public:
 		void setRenderSurface(std::weak_ptr<pw::PixelWindow> window);

@@ -42,13 +42,9 @@ namespace sr {
 		const int width = fb->getWidth();
 		const int height = fb->getHeight();
 
-		//const auto pos1 = this->transformViewport(v1, width, height).getPosition();
-		//const auto pos2 = this->transformViewport(v2, width, height).getPosition();
-		//const auto pos3 = this->transformViewport(v3, width, height).getPosition();
-
-		const auto pos1 = v1.getPosition();
-		const auto pos2 = v2.getPosition();
-		const auto pos3 = v3.getPosition();
+		const auto pos1 = this->transformViewport(v1, width, height).getPosition();
+		const auto pos2 = this->transformViewport(v2, width, height).getPosition();
+		const auto pos3 = this->transformViewport(v3, width, height).getPosition();
 
 		this->renderLine(fb, pos1.getX(), pos1.getY(), pos2.getX(), pos2.getY(), 0xFFFFFFFF);
 		this->renderLine(fb, pos2.getX(), pos2.getY(), pos3.getX(), pos3.getY(), 0xFFFFFFFF);
@@ -65,8 +61,6 @@ namespace sr {
 
 		std::array<std::reference_wrapper<const Vertex>, 3> sorted = this->sortVerticesY(tv1, tv2, tv3);
 		
-		//std::cout << sorted[0].get().getPosition() << " " << sorted[1].get().getPosition() << " " << sorted[2].get().getPosition() << std::endl;
-
 		// generate 4th vertex
 
 		// if dy1 == dy2 => Flat Top
@@ -116,8 +110,8 @@ namespace sr {
 		const auto dir1 = 1.0f/dy * (target - base1);
 		const auto dir2 = 1.0f/dy * (target - base2);
 
-		int yBegin = std::ceil(base1.getPosition().getY() - 0.5f);
-		int yEnd = std::ceil(target.getPosition().getY() - 0.5f);
+		int yBegin = std::max(int(std::ceil(base1.getPosition().getY() - 0.5f)), 0);
+		int yEnd = std::min(int(std::ceil(target.getPosition().getY() - 0.5f)), fb->getHeight());
 
 		const auto edge1 = base1 + ((float(yBegin) + 0.5f - base1.getPosition().getY()) * dir1);
 		const auto edge2 = base2 + ((float(yBegin) + 0.5f - base2.getPosition().getY()) * dir2);
@@ -154,8 +148,8 @@ namespace sr {
 		const auto dir1 = 1.0f / dy * (base1 - target);
 		const auto dir2 = 1.0f / dy * (base2 - target);
 
-		int yBegin = std::ceil(target.getPosition().getY() - 0.5f);
-		int yEnd = std::ceil(base1.getPosition().getY() - 0.5f);
+		int yBegin = std::max(int(std::ceil(target.getPosition().getY() - 0.5f)), 0);
+		int yEnd = std::min(int(std::ceil(base1.getPosition().getY() - 0.5f)), fb->getHeight());
 
 
 		const auto edge1 = target + ((float(yBegin) + 0.5f - target.getPosition().getY()) * dir1);
@@ -189,10 +183,9 @@ namespace sr {
 		auto fs = this->fragmentShader.lock();
 		if (fs == nullptr) return;
 		
-
 		for (int y = yBegin; y < yEnd ; ++y) {
-			int xBegin = std::ceil(edge1.getPosition().getX() - 0.5f);
-			int xEnd = std::ceil(edge2.getPosition().getX() - 0.5f);
+			int xBegin = std::max(int(std::ceil(edge1.getPosition().getX() - 0.5f)), 0);
+			int xEnd = std::min(int(std::ceil(edge2.getPosition().getX() - 0.5f)), fb->getWidth());
 			
 
 			float dx = edge2.getPosition().getX() - edge1.getPosition().getX();
@@ -200,15 +193,21 @@ namespace sr {
 
 			auto line = edge1 + (float(xBegin) + 0.5f - edge1.getPosition().getX()) * xStep;
 
-
 			for (int x = xBegin; x < xEnd ; ++x) {
-				if (x >= fb->getWidth() || x < 0 || y >= fb->getHeight() || y < 0) continue; // TODO change later
+				// z is between -1 and 1
+
+				// Z-Test
+				if (this->zBuffer.get(x, y) < line.getPosition().getZ()) continue;
+				this->zBuffer.set(x, y, line.getPosition().getZ());
+
 				fs->in_color = line.getColor();
 				fs->in_position = line.getPosition();
 				fs->main();
 
 				int color = this->convertColor(fs->out_color);
+				
 				fb->setPixel(x, y, color);
+				
 
 				line = line + xStep;
 			}
@@ -315,6 +314,14 @@ namespace sr {
 		return lm::cross((v2.getPosition() - v1.getPosition()).getXYZ(), (v3.getPosition() - v1.getPosition()).getXYZ());
 	}
 
+	void Renderer::checkZBufferSize() {
+		auto fb = this->frameBuffer.lock();
+		if (fb == nullptr) return;
+
+		if (fb->getWidth() == this->zBuffer.getWidth() && fb->getHeight() == this->zBuffer.getHeight()) return;
+		this->zBuffer.resize(fb->getWidth(), fb->getHeight());
+	}
+
 	// Public
 
 	void Renderer::setRenderSurface(std::weak_ptr<pw::PixelWindow> window) {
@@ -366,6 +373,7 @@ namespace sr {
 	void Renderer::render(RenderMode mode, const std::vector<Vertex>& vertices) {
 		auto fb = this->frameBuffer.lock();
 		if (fb == nullptr) return;
+		this->checkZBufferSize(); // Checks if framebuffer size and z-buffer size match
 
 		if (mode == RenderMode::TRIANGLE) {
 			// TODO Render Triangle (implemented later)
@@ -382,6 +390,8 @@ namespace sr {
 	void Renderer::renderIndexed(RenderMode mode, const std::vector<Vertex>& vertices, const IntegerDataBuffer<3>& indices) {
 		auto fb = this->frameBuffer.lock();
 		if (fb == nullptr) return;
+		this->checkZBufferSize(); // Checks if framebuffer size and z-buffer size match
+		this->zBuffer.reset();
 
 		auto gs = this->geometryShader.lock();
 
@@ -389,9 +399,6 @@ namespace sr {
 			for (size_t i = 0; i < indices.getAttributeCount(); ++i) {
 				auto triangleIndices = indices.getVertexAttribute(i);
 
-				//const auto& v1 = vertices[triangleIndices[0]];
-				//const auto& v2 = vertices[triangleIndices[1]];
-				//const auto& v3 = vertices[triangleIndices[2]];
 				std::reference_wrapper<const Vertex> v1 = vertices[triangleIndices[0]];
 				std::reference_wrapper<const Vertex> v2 = vertices[triangleIndices[1]];
 				std::reference_wrapper<const Vertex> v3 = vertices[triangleIndices[2]];
