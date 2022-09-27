@@ -30,9 +30,9 @@ public:
 	}
 
 	void main() {
-		auto in_position = sr::vec4( this->getVertexAttribute<3>(0), 1.0f);
+		auto in_position = sr::vec4(2 * this->getVertexAttribute<3>(0), 1.0f);
 		in_position = transformationMatrix * in_position;
-		in_position = in_position - sr::vec4({ 0, 0.5f, 1.75, 0 });
+		in_position = in_position - sr::vec4({ 0, 0.0f, 3.5, 0 });
 
 		out_position = projectionMatrix * in_position;
 	}
@@ -112,7 +112,7 @@ int main(){
 
 	// Load OBJ Model
 
-	auto model = sr::loadObj("../../../../examples/teapot.obj.txt");
+	auto model = sr::loadObj("../../../../examples/dragon.obj.txt");
 	if (!model.has_value()) return 0;
 	auto& [pos, ind] = model.value();
 

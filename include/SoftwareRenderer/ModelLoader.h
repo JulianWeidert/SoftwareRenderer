@@ -30,14 +30,16 @@ namespace sr {
 
 		while (index < line.size()) {
 			if (line[index] == ' ') {
-				if (index != next) subStrings.push_back(line.substr(next, int(index - next)));
+				if (index != next) subStrings.push_back(line.substr(next, size_t(index) - next));
 				while (index != line.size() && line[index] == ' ') index++;
 				next = index;
 			}
-			index++;
+			else {
+				index++;
+			}
 		}
 
-		if (index != next) subStrings.push_back(line.substr(next, int(index - next)));
+		if (index != next) subStrings.push_back(line.substr(next, size_t(index) - next));
 		return subStrings;
 	}
 
@@ -55,13 +57,15 @@ namespace sr {
 			//std::cout << line << std::endl;
 			if (split.size() > 1) {
 				if (split[0].compare("v") == 0) {
-					if (split.size() != 4) return {}; // File corrupt
+					if (split.size() != 4)
+						return {}; // File corrupt
 					positions.push_back(std::stof(split[1]));
 					positions.push_back(std::stof(split[2]));
 					positions.push_back(std::stof(split[3]));
 				}
 				else if (split[0].compare("f") == 0) {
-					if (split.size() != 4) return {}; // File corrupt
+					if (split.size() != 4) 
+						return {}; // File corrupt
 					indices.push_back(std::stoi(split[1]) - 1);
 					indices.push_back(std::stoi(split[2]) - 1);
 					indices.push_back(std::stoi(split[3]) - 1);
