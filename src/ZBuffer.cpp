@@ -26,7 +26,7 @@ namespace sr {
 	}
 
 	void ZBuffer::set(int x, int y, float value) {
-		assert(this->pixelBuffer != nullptr);
+		assert(this->buffer != nullptr);
 		assert(!(x < 0 || x >= this->width || y < 0 || y >= this->height));
 		this->buffer[size_t(y) * this->width + x] = value;
 	}
