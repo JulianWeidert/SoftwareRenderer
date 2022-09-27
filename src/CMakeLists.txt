@@ -12,6 +12,7 @@ set(SRC
 	"${INCLUDE_DIR}/FragmentShader.h"
 	"${INCLUDE_DIR}/GeometryShader.h"
 	"${INCLUDE_DIR}/ZBuffer.h"
+	"${INCLUDE_DIR}/ModelLoader.h"
 	"RenderPipeline.cpp"
 	"Renderer.cpp"
 	"Vertex.cpp"
@@ -20,7 +21,8 @@ set(SRC
 	"FragmentShader.cpp"
 	"GeometryShader.cpp"
     "ZBuffer.cpp"
-	)
+	"ModelLoader.cpp"
+)
 
 add_library(SoftwareRenderer ${SRC})
 
