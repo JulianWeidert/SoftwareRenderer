@@ -8,6 +8,7 @@
 #include <SoftwareRenderer/RenderPipeline.h>
 #include <SoftwareRenderer/VertexShader.h>
 #include <SoftwareRenderer/FragmentShader.h>
+#include <SoftwareRenderer/ModelLoader.h>
 
 
 class TestVertexShader : public sr::VertexShader {
@@ -29,12 +30,11 @@ public:
 	}
 
 	void main() {
-		auto in_position = sr::vec4(2 * this->getVertexAttribute<3>(0), 1.0f);
+		auto in_position = sr::vec4( this->getVertexAttribute<3>(0), 1.0f);
 		in_position = transformationMatrix * in_position;
-		in_position = in_position - sr::vec4({ 0, -1.5, 4.5, 0 });
+		in_position = in_position - sr::vec4({ 0, 0.5f, 1.75, 0 });
 
 		out_position = projectionMatrix * in_position;
-		out_color = this->getVertexAttribute<4>(0);
 	}
 
 	void setProjectionMatrix(const lm::Matrix4x4f& mat) {
@@ -62,12 +62,12 @@ protected:
 	void main() {
 		
 
-		//auto center = 0.3333f * (this->in_positions[0] + this->in_positions[1] + this->in_positions[2]);
 		auto lightDir = lightPosition - this->in_positions[0].getXYZ();
 
 		auto brightness = std::max(0.04f, this->in_surfaceNormal.getNormalized() * lightDir.getNormalized());
 
 		sr::vec4 outColor = { brightness, brightness, brightness, 1.0 };
+		//outColor = { 0,1,1,1 };
 
 		this->out_colors = { outColor, outColor, outColor };
 		this->out_positions = this->in_positions;
@@ -108,9 +108,13 @@ lm::Matrix4x4f createProjectionMatrix(float near, int width, int height) {
 
 int main(){
 
-
 	auto w1 = std::make_shared<pw::PixelWindow>(640, 640, "SoftwareRenderer");
 
+	// Load OBJ Model
+
+	auto model = sr::loadObj("../../../../examples/teapot.obj.txt");
+	if (!model.has_value()) return 0;
+	auto& [pos, ind] = model.value();
 
 	std::vector<float> positions = {
 			// Front
@@ -126,33 +130,28 @@ int main(){
 			-0.5f,-0.5f,-0.5f // Back Bottom Left
 	};
 
-	// RGBA
-	std::vector<float> colors = {
-		1.0f, 0.0f, 0.0f, 1.0f, 
-		0.0f, 1.0f, 0.0f, 1.0f,
-		0.0f, 0.0f, 1.0f, 1.0f,
-		1.0f, 0.0f, 0.0f, 1.0f,
-
-		0.0f, 1.0f, 0.0f, 1.0f,
-		0.0f, 0.0f, 1.0f, 1.0f,
-		1.0f, 0.0f, 0.0f, 1.0f,
-		0.0f, 1.0f, 0.0f, 1.0f
-	};
-
 	std::vector<int> indices = {
-			0,1,2, 0,2,3, // Front
+			//0,1,2, 0,2,3, // Front
+			2,1,0, 3,2,0,
 
-			1,5,6, 1,6,2, // Right
+			//1,5,6, 1,6,2, // Right
+			6,5,1, 2,6,1,
 
-			5,4,7, 5,7,6, // Back
+			//5,4,7, 5,7,6, // Back
+			7,4,5, 6,7,5,
 
-			4,0,3, 4,3,7, // Left
+			//4,0,3, 4,3,7, // Left
+			3,0,4, 7,3,4,
 
-			4,5,1, 4,1,0, // Top
+			//4,5,1, 4,1,0, // Top
+			1,5,4, 0,1,4,
 
-			3,2,6, 3,6,7 // Bottom
+			//3,2,6, 3,6,7 // Bottom
+			6,2,3, 7,6,3
 	};
 
+	positions = pos;
+	indices = ind;
 
 	sr::RenderPipeline pipeline;
 	pipeline.setRenderSurface(w1);
@@ -163,19 +162,16 @@ int main(){
 	auto positionBuffer = pipeline.bufferFloatData<3>(positions);
 	pipeline.storeBufferInBufferArray(0, positionBuffer);
 
-	auto colorBuffer = pipeline.bufferFloatData<4>(colors);
-	pipeline.storeBufferInBufferArray(1, colorBuffer);
-
 	auto indexBuffer = pipeline.createIndexBuffer(indices);
 	pipeline.bindIndexBuffer(indexBuffer);
 
-	std::shared_ptr<TestVertexShader> vs = std::make_shared<TestVertexShader>();
+	auto vs = std::make_shared<TestVertexShader>();
 	pipeline.bindVertexShader(vs);
 
-	std::shared_ptr<TestFragmentShader> fs = std::make_shared<TestFragmentShader>();
+	auto fs = std::make_shared<TestFragmentShader>();
 	pipeline.bindFragmentShader(fs);
 
-	std::shared_ptr<TestGeometryShader> gs = std::make_shared<TestGeometryShader>();
+	auto gs = std::make_shared<TestGeometryShader>();
 	pipeline.bindGeometryShader(gs);
 
 	lm::Matrix4x4f projMat = createProjectionMatrix(1, 640, 640);
@@ -188,7 +184,7 @@ int main(){
 	});
 
 
-	float rad = 1.0;
+	float rad = 0;
 
 	//pipeline.disableBackfaceCulling();
 

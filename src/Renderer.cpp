@@ -42,9 +42,13 @@ namespace sr {
 		const int width = fb->getWidth();
 		const int height = fb->getHeight();
 
-		const auto pos1 = this->transformViewport(v1, width, height).getPosition();
-		const auto pos2 = this->transformViewport(v2, width, height).getPosition();
-		const auto pos3 = this->transformViewport(v3, width, height).getPosition();
+		//const auto pos1 = this->transformViewport(v1, width, height).getPosition();
+		//const auto pos2 = this->transformViewport(v2, width, height).getPosition();
+		//const auto pos3 = this->transformViewport(v3, width, height).getPosition();
+
+		const auto pos1 = v1.getPosition();
+		const auto pos2 = v2.getPosition();
+		const auto pos3 = v3.getPosition();
 
 		this->renderLine(fb, pos1.getX(), pos1.getY(), pos2.getX(), pos2.getY(), 0xFFFFFFFF);
 		this->renderLine(fb, pos2.getX(), pos2.getY(), pos3.getX(), pos3.getY(), 0xFFFFFFFF);
@@ -61,35 +65,107 @@ namespace sr {
 
 		std::array<std::reference_wrapper<const Vertex>, 3> sorted = this->sortVerticesY(tv1, tv2, tv3);
 		
-		// generate 4th vertex
-		float dy1 = sorted[0].get().getPosition().getY() - sorted[1].get().getPosition().getY();
-		float dy2 = sorted[0].get().getPosition().getY() - sorted[2].get().getPosition().getY();
+		//std::cout << sorted[0].get().getPosition() << " " << sorted[1].get().getPosition() << " " << sorted[2].get().getPosition() << std::endl;
 
-		if (dy2 == 0) {
-			// Render flat top
-			this->renderFlatTopTriangle(fb, sorted[0].get(), sorted[1].get(), sorted[2].get());
+		// generate 4th vertex
+
+		// if dy1 == dy2 => Flat Top
+		if(sorted[0].get().getPosition().getY() == sorted[1].get().getPosition().getY()){ // Flat bottom
+			if(sorted[0].get().getPosition().getX() < sorted[1].get().getPosition().getX())
+				this->renderFlatBottomTriangle(fb, sorted[0], sorted[1], sorted[2]);
+			else
+				this->renderFlatBottomTriangle(fb, sorted[1], sorted[0], sorted[2]);
+		}
+		else if (sorted[1].get().getPosition().getY() == sorted[2].get().getPosition().getY()) { // Flat top
+			if (sorted[1].get().getPosition().getX() < sorted[2].get().getPosition().getX())
+				this->renderFlatTopTriangle(fb, sorted[1], sorted[2], sorted[0]);
+			else
+				this->renderFlatTopTriangle(fb, sorted[2], sorted[1], sorted[0]);
 		}
 		else {
 
+			float dy1 = sorted[0].get().getPosition().getY() - sorted[1].get().getPosition().getY();
+			float dy2 = sorted[0].get().getPosition().getY() - sorted[2].get().getPosition().getY();
+
 			float alpha = dy1 / dy2;
-			const auto tv4 = lerp(sorted[2].get(), sorted[0].get(), alpha);
+			const auto tv4 = alpha * sorted[2] + (1 - alpha) * sorted[0]; // lerp
+
 
 			// sorted[1] to v4 is flat
 
-			// render flat top
-			this->renderFlatTopTriangle(fb, sorted[1].get(), tv4, sorted[2].get());
 
-			// render flat bottom
-			this->renderFlatBottomTriangle(fb, sorted[1].get(), tv4, sorted[0].get());
+			if (sorted[1].get().getPosition().getX() < tv4.getPosition().getX()) {
+				this->renderFlatTopTriangle(fb, sorted[1], tv4, sorted[0]);
+				this->renderFlatBottomTriangle(fb, sorted[1], tv4, sorted[2]);
+			}
+			else {
+				this->renderFlatTopTriangle(fb, tv4, sorted[1], sorted[0]);
+				this->renderFlatBottomTriangle(fb, tv4, sorted[1], sorted[2]);
+			}
+
+
 
 		}
 
 	}
 
-	void Renderer::renderFlatTopTriangle(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& v1, const Vertex& v2, const Vertex& v3) {
+	void Renderer::renderFlatTopTriangle(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& base1, const Vertex& base2, const Vertex& target) {
 
-		float yBegin = std::ceilf(v3.getPosition().getY() - 0.5);
-		float yEnd = std::ceilf(v1.getPosition().getY() - 0.5);
+		float dy = target.getPosition().getY() - base1.getPosition().getY();
+
+		const auto dir1 = 1.0f/dy * (target - base1);
+		const auto dir2 = 1.0f/dy * (target - base2);
+
+		int yBegin = std::ceil(base1.getPosition().getY() - 0.5f);
+		int yEnd = std::ceil(target.getPosition().getY() - 0.5f);
+
+		const auto edge1 = base1 + ((float(yBegin) + 0.5f - base1.getPosition().getY()) * dir1);
+		const auto edge2 = base2 + ((float(yBegin) + 0.5f - base2.getPosition().getY()) * dir2);
+
+		this->renderFlatTriangle(fb, yBegin, yEnd, edge1, edge2, dir1, dir2);
+
+		/*float yBegin = std::ceilf(v3.getPosition().getY() - 0.5f);
+		float yEnd = std::ceilf(v1.getPosition().getY() - 0.5f);
+
+		float dy = (v1.getPosition().getY() - v3.getPosition().getY());
+
+		float mxBegin = (v1.getPosition().getX() - v3.getPosition().getX()) / dy;
+		float mxEnd = (v2.getPosition().getX() - v3.getPosition().getX()) / dy;
+
+
+		for (float y = yBegin; y < yEnd ; y += 1.0f) {
+			// render row
+			float xBegin = std::ceilf(v1.getPosition().getX() + (y - v1.getPosition().getY() + 0.5f) * mxBegin - 0.5f);
+			float xEnd = std::ceilf(v2.getPosition().getX() + (y - v1.getPosition().getY() + 0.5f) * mxEnd - 0.5f);
+			
+			if (xEnd < xBegin) std::swap(xBegin, xEnd);
+			
+			this->renderLine(fb, v1, v2, v3, y, xBegin, xEnd);
+
+		}*/
+
+	}
+
+
+	void Renderer::renderFlatBottomTriangle(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& base1, const Vertex& base2, const Vertex& target) {
+
+		float dy = base1.getPosition().getY() - target.getPosition().getY();
+
+		const auto dir1 = 1.0f / dy * (base1 - target);
+		const auto dir2 = 1.0f / dy * (base2 - target);
+
+		int yBegin = std::ceil(target.getPosition().getY() - 0.5f);
+		int yEnd = std::ceil(base1.getPosition().getY() - 0.5f);
+
+
+		const auto edge1 = target + ((float(yBegin) + 0.5f - target.getPosition().getY()) * dir1);
+		const auto edge2 = target + ((float(yBegin) + 0.5f - target.getPosition().getY()) * dir2);
+
+
+		this->renderFlatTriangle(fb, yBegin, yEnd, edge1, edge2, dir1, dir2);
+
+		/*float yBegin = std::ceilf(v1.getPosition().getY() - 0.5f);
+		float yEnd = std::ceilf(v3.getPosition().getY()- 0.5f);
 
 		float dy = (v1.getPosition().getY() - v3.getPosition().getY());
 
@@ -101,61 +177,49 @@ namespace sr {
 			// render row
 			float xBegin = std::ceilf(v1.getPosition().getX() + (y - v1.getPosition().getY() + 0.5f) * mxBegin - 0.5f);
 			float xEnd = std::ceilf(v2.getPosition().getX() + (y - v1.getPosition().getY() + 0.5f) * mxEnd - 0.5f);
-			
-			if (xEnd < xBegin) std::swap(xBegin, xEnd);
-			
-			this->renderLine(fb, v1, v2, v3, y, xBegin, xEnd);
-
-		}
-
-	}
-
-
-	void Renderer::renderFlatBottomTriangle(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& v1, const Vertex& v2, const Vertex& v3) {
-
-		float yBegin = std::ceilf(v1.getPosition().getY() - 0.5);
-		float yEnd = std::ceilf(v3.getPosition().getY() - 0.5);
-
-		float dy = (v1.getPosition().getY() - v3.getPosition().getY());
-
-		float mxBegin = (v1.getPosition().getX() - v3.getPosition().getX()) / dy;
-		float mxEnd = (v2.getPosition().getX() - v3.getPosition().getX()) / dy;
-
-
-		for (float y = yBegin; y < yEnd; y += 1.0f) {
-			// render row
-			float xBegin = std::ceilf(v1.getPosition().getX() + (y - v1.getPosition().getY() + 0.5f) * mxBegin - 0.5f);
-			float xEnd = std::ceilf(v2.getPosition().getX() + (y - v1.getPosition().getY() + 0.5f) * mxEnd - 0.5f);
 
 			if (xEnd < xBegin) std::swap(xBegin, xEnd);
 
 			this->renderLine(fb, v1, v2, v3, y, xBegin, xEnd);
 
-		}
+		}*/
 	}
 
-	// try to vectorize later
-	void Renderer::renderLine(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& v1, const Vertex& v2, const Vertex& v3, float y, float xBegin, float xEnd) {
+	void Renderer::renderFlatTriangle(const std::shared_ptr<pw::PixelWindow>& fb, int yBegin, int yEnd, Vertex edge1, Vertex edge2, const Vertex& dir1, const Vertex& dir2) {
 		auto fs = this->fragmentShader.lock();
 		if (fs == nullptr) return;
+		
 
-		for (float x = xBegin; x <= xEnd; x += 1.0f) {
-			if (x >= fb->getWidth() || x < 0 || y >= fb->getHeight() || y < 0) continue;
+		for (int y = yBegin; y < yEnd ; ++y) {
+			int xBegin = std::ceil(edge1.getPosition().getX() - 0.5f);
+			int xEnd = std::ceil(edge2.getPosition().getX() - 0.5f);
 			
-			Vertex interpolated = interpolateTriangle(v1, v2, v3, x, y);
 
-			// invoke fragemntshader
-			fs->in_color = interpolated.getColor();
-			fs->in_position = interpolated.getPosition();
-			fs->main();
+			float dx = edge2.getPosition().getX() - edge1.getPosition().getX();
+			auto xStep = 1.0f / dx * (edge2 - edge1);
 
-			int color = this->convertColor(fs->out_color);
-			
-			fb->setPixel(int(x), int(y), color);
+			auto line = edge1 + (float(xBegin) + 0.5f - edge1.getPosition().getX()) * xStep;
 
-			fs->reset();
+
+			for (int x = xBegin; x < xEnd ; ++x) {
+				if (x >= fb->getWidth() || x < 0 || y >= fb->getHeight() || y < 0) continue; // TODO change later
+				fs->in_color = line.getColor();
+				fs->in_position = line.getPosition();
+				fs->main();
+
+				int color = this->convertColor(fs->out_color);
+				fb->setPixel(x, y, color);
+
+				line = line + xStep;
+			}
+
+			edge1 = edge1 + dir1;
+			edge2 = edge2 + dir2;
 		}
+
 	}
+
+
 
 	Vertex Renderer::transformViewport(const Vertex& vert, int viewportWidth, int viewportHeight) const {
 		Vertex out{};
@@ -192,36 +256,6 @@ namespace sr {
 		return out;
 	}
 
-	// Try to vectorize later
-	Vertex Renderer::interpolateTriangle(const Vertex& v1, const Vertex& v2, const Vertex& v3, float x, float y) const {
-		auto& p1 = v1.getPosition();
-		auto& p2 = v2.getPosition();
-		auto& p3 = v3.getPosition();
-		
-		float dy1 = p2.getY() - p3.getY();
-		float dy2 = y - p3.getY();
-		float dy3 = p3.getY() - p1.getY();
-		float dy4 = -dy3;
-
-		float dx1 = p3.getX() - p2.getX();
-		float dx2 = x - p3.getX();
-		float dx3 = p1.getX() - p3.getX();
-
-		float denom = dy1 * dx3 + dx1 * dy4;
-
-		// vectorize max?
-		float w1 = std::max((dy1 * dx2 + dx1 * dy2) / denom, 0.0f);
-		float w2 = std::max((dy3 * dx2 + dx3 * dy2) / denom, 0.0f);
-		float w3 = std::max(1 - w1 - w2, 0.0f);
-
-		Vertex v;
-
-		v.position = w1 * v1.getPosition() + w2 * v2.getPosition() + w3 * v3.getPosition();
-		v.color = w1 * v1.getColor() + w2 * v2.getColor() + w3 * v3.getColor();
-
-		return v;
-
-	}
 
 	int Renderer::convertColor(const lm::Vector4f& color) const {
 		auto c = 255.0f * color;
@@ -362,7 +396,7 @@ namespace sr {
 				std::reference_wrapper<const Vertex> v2 = vertices[triangleIndices[1]];
 				std::reference_wrapper<const Vertex> v3 = vertices[triangleIndices[2]];
 
-				auto surfaceNormal = -this->getSurfaceNormal(v1, v2, v3);
+				auto surfaceNormal = this->getSurfaceNormal(v1, v2, v3);
 
 				// Backface culling
 				auto pos = lm::Vector3f(v2.get().getPosition().getXY(), v2.get().getPosition().getW());
@@ -373,7 +407,7 @@ namespace sr {
 				if (gs != nullptr) {
 					gs->in_positions = { v1.get().getPosition(), v2.get().getPosition(), v3.get().getPosition() };
 					gs->in_colors = { v1.get().getColor(), v2.get().getColor(), v3.get().getColor() };
-					gs->in_surfaceNormal = surfaceNormal;
+					gs->in_surfaceNormal = lm::Vector3f(-surfaceNormal.getXY(), surfaceNormal.getZ());
 
 					gs->main();
 
@@ -403,11 +437,12 @@ namespace sr {
 			for (size_t i = 0; i < indices.getAttributeCount(); ++i) {
 				auto triangleIndices = indices.getVertexAttribute(i);
 
+				//std::cout << triangleIndices[0] << " " << vertices.size() << std::endl;
 				const auto& v1 = vertices[triangleIndices[0]];
 				const auto& v2 = vertices[triangleIndices[1]];
 				const auto& v3 = vertices[triangleIndices[2]];
 
-				auto surfaceNormal = -this->getSurfaceNormal(v1, v2, v3);
+				auto surfaceNormal = this->getSurfaceNormal(v1, v2, v3);
 				
 				// Backface culling
 				auto pos = lm::Vector3f(v2.getPosition().getXY(), v2.getPosition().getW());
