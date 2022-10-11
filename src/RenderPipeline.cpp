@@ -57,6 +57,14 @@ namespace sr {
 		this->renderer.disableBackfaceCulling();
 	}
 
+	void RenderPipeline::beginFrame() {
+		this->renderer.beginFrame();
+	}
+
+	void RenderPipeline::endFrame() {
+		this->renderer.endFrame();
+	}
+
 	void RenderPipeline::draw(RenderMode mode, int vertexCount) {
 		// Test if VertexShader is present
 		auto vs = this->vertexShader.lock();
@@ -81,7 +89,7 @@ namespace sr {
 			this->renderer.renderIndexed(mode, transformedVertices, this->indexBufferList[this->bufferArrays[this->currentBufferArray].getIndexBuffer()]);
 		}
 		else {
-			this->renderer.render(mode, transformedVertices);
+			//this->renderer.render(mode, transformedVertices);
 		}
 
 	}

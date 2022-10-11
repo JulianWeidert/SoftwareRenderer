@@ -1,6 +1,8 @@
 
 #include <iostream>
 #include <vector>
+#include <chrono>
+#include <thread>
 
 #include <PixelWindow/PixelWindow.h>
 #include <LeptonMath/Matrix.h>
@@ -30,11 +32,13 @@ public:
 	}
 
 	void main() {
-		auto in_position = sr::vec4(2 * this->getVertexAttribute<3>(0), 1.0f);
+		auto in_position = sr::vec4( this->getVertexAttribute<3>(0), 1.0f);
 		in_position = transformationMatrix * in_position;
-		in_position = in_position - sr::vec4({ 0, 0.0f, 3.5, 0 });
+
+		in_position = in_position - sr::vec4({ 0, 0.5f, 1.0f, 0 });
 
 		out_position = projectionMatrix * in_position;
+		out_color = { 1,1,1,1 };
 	}
 
 	void setProjectionMatrix(const lm::Matrix4x4f& mat) {
@@ -48,11 +52,15 @@ public:
 
 class TestFragmentShader : public sr::FragmentShader {
 protected:
-	void main() {
+	void main() override {
 		this->out_color = this->in_color;
 	}
-};
 
+	std::unique_ptr<sr::FragmentShader> clone() const override {
+		return std::make_unique<TestFragmentShader>(*this);
+	}
+
+};
 
 class TestGeometryShader : public sr::GeometryShader {
 private:
@@ -66,12 +74,17 @@ protected:
 
 		auto brightness = std::max(0.04f, this->in_surfaceNormal.getNormalized() * lightDir.getNormalized());
 
-		sr::vec4 outColor = { brightness, brightness, brightness, 1.0 };
-		//outColor = { 0,1,1,1 };
+		sr::vec4 outColor = { brightness , brightness, brightness, 1.0 };
 
 		this->out_colors = { outColor, outColor, outColor };
+		
 		this->out_positions = this->in_positions;
 	}
+
+	std::unique_ptr<sr::GeometryShader> clone() const override {
+		return  std::make_unique<TestGeometryShader>(*this);
+	}
+
 };
 
 
@@ -108,11 +121,16 @@ lm::Matrix4x4f createProjectionMatrix(float near, int width, int height) {
 
 int main(){
 
-	auto w1 = std::make_shared<pw::PixelWindow>(640, 640, "SoftwareRenderer");
+
+
+	auto w1 = std::make_shared<pw::PixelWindow>(640 , 360 , "SoftwareRenderer");
 
 	// Load OBJ Model
 
-	auto model = sr::loadObj("../../../../examples/dragon.obj.txt");
+	std::string path = "../../../../examples/";
+	std::string fileName = "dragon.obj.txt";
+
+	auto model = sr::loadObj(path + fileName);
 	if (!model.has_value()) return 0;
 	auto& [pos, ind] = model.value();
 
@@ -174,36 +192,47 @@ int main(){
 	auto gs = std::make_shared<TestGeometryShader>();
 	pipeline.bindGeometryShader(gs);
 
-	lm::Matrix4x4f projMat = createProjectionMatrix(1, 640, 640);
+	lm::Matrix4x4f projMat = createProjectionMatrix(0.5f, 640 , 360 );
 
 	vs->setProjectionMatrix(projMat);
 
 	w1->addResizeCallback([&](int w, int h) {
-		lm::Matrix4x4f projMat = createProjectionMatrix(1, w, h);
+		lm::Matrix4x4f projMat = createProjectionMatrix(0.5f, w, h);
 		vs->setProjectionMatrix(projMat);
 	});
 
 
 	float rad = 0;
 
-	//pipeline.disableBackfaceCulling();
+	int frameCount = 0;
 
+	auto time = std::chrono::high_resolution_clock::now();
 	while (w1->isActive()) {
-		rad += 0.001f;
+		
+		//rad += 0.01f;
 
 		auto transMat = createRotationMatrixYAxis(rad);
 		vs->setTransformationMatrix(transMat);
 
 		w1->makeCurrent();
 
-		w1->beginFrame();
-		w1->setBackgroundColor(0x00000000);
-
+		pipeline.beginFrame();
+		
 		pipeline.draw(sr::RenderMode::TRIANGLE, positions.size() / 3);
 
-		w1->endFrame();
+		pipeline.endFrame();
+
+		frameCount++;
 
 		w1->pollEvents();
+
+		if (double(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()- time).count()) > 1000) {
+			time = std::chrono::high_resolution_clock::now();
+			std::cout << "FPS: " << frameCount << std::endl;
+			frameCount = 0;
+		}
+		
+		
 	}
 	
 

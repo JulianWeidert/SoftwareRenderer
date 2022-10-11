@@ -20,6 +20,7 @@ namespace sr{
 		vec4 out_color;
 
 		virtual void main() = 0;
+		virtual std::unique_ptr<FragmentShader> clone() const = 0;
 
 		void reset();
 

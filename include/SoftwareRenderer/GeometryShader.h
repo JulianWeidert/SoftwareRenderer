@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <memory>
 
 #include <LeptonMath/Vector.h>
 
@@ -22,6 +23,7 @@ namespace sr {
 		std::array<vec4, 3> out_colors;
 
 		virtual void main() = 0;
+		virtual std::unique_ptr<GeometryShader> clone() const = 0;
 		void reset();
 
 	public:

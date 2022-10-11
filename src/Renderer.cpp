@@ -3,13 +3,64 @@
 
 #include <cmath>
 
+#include <thread>
+#include <chrono>
+
 #include <iostream> // DEBUG
+
+
 
 namespace sr {
 
-	// Private
-	
-	void Renderer::renderLine(const std::shared_ptr<pw::PixelWindow>& fb, int xBegin, int yBegin, int xEnd, int yEnd, int color) {
+	// RenderBatchContext
+
+	template<size_t size>
+	bool Renderer::RenderBatchContext<size>::isFull() const {
+		return this->index == size;
+	}
+
+	template<size_t size>
+	void Renderer::RenderBatchContext<size>::addPixel(int x, int y, int color, float depth) {
+		this->buffer[index++] = { x, y, color, depth };
+	}
+
+	template<size_t size>
+	void Renderer::RenderBatchContext<size>::reset() {
+		this->index = 0;
+	}
+
+	template<size_t size>
+	const std::array<Renderer::Fragment, size>& Renderer::RenderBatchContext<size>::getBuffer() const {
+		return this->buffer;
+	}
+
+	template<size_t size>
+	int Renderer::RenderBatchContext<size>::getIndex() const {
+		return this->index;
+	}
+
+	// Renderer
+
+	void Renderer::renderPixel(const std::shared_ptr<pw::PixelWindow>& fb, RenderBatchContext<BUFFER_SIZE>& batchContext, int x, int y, int color, float depth) {
+		batchContext.addPixel(x, y, color, depth);
+		if (batchContext.isFull()) {
+			// Write to framebuffer
+			auto& pixels = batchContext.getBuffer();
+			{
+				std::lock_guard<std::mutex> lock(this->frameBufferLock);
+				for (auto& p : pixels) {
+					if (zBuffer.get(p.x, p.y) > p.depth) {
+						fb->setPixel(p.x, p.y, p.color);
+						zBuffer.set(p.x, p.y, p.depth);
+					}
+				}
+			}
+			batchContext.reset();
+		}
+	}
+
+	// Wireframe rendering
+	void Renderer::renderLine(const std::shared_ptr<pw::PixelWindow>& fb, RenderBatchContext<BUFFER_SIZE>& batchContext, int xBegin, int yBegin, int xEnd, int yEnd, int color) {
 		int width = fb->getWidth();
 		int height = fb->getHeight();
 		
@@ -24,7 +75,10 @@ namespace sr {
 		int y = yBegin;
 
 		while (1) {
-			if(x < width && x >= 0 && y < height && y >= 0) fb->setPixel(x, y, color);
+			if (x < width && x >= 0 && y < height && y >= 0) {
+				this->renderPixel(fb, batchContext, x, y, color, 0);
+				//fb->setPixel(x, y, color);
+			}
 			if (x == xEnd && y == yEnd) break;
 			e2 = 2 * err;
 			if (e2 > dy) {
@@ -38,7 +92,7 @@ namespace sr {
 		}
 	}
 
-	void Renderer::renderTriangleWireframe(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& v1, const Vertex& v2, const Vertex& v3) {
+	void Renderer::renderTriangleWireframe(const std::shared_ptr<pw::PixelWindow>& fb, RenderBatchContext<BUFFER_SIZE>& batchContext, const Vertex& v1, const Vertex& v2, const Vertex& v3) {
 		const int width = fb->getWidth();
 		const int height = fb->getHeight();
 
@@ -46,12 +100,131 @@ namespace sr {
 		const auto pos2 = this->transformViewport(v2, width, height).getPosition();
 		const auto pos3 = this->transformViewport(v3, width, height).getPosition();
 
-		this->renderLine(fb, pos1.getX(), pos1.getY(), pos2.getX(), pos2.getY(), 0xFFFFFFFF);
-		this->renderLine(fb, pos2.getX(), pos2.getY(), pos3.getX(), pos3.getY(), 0xFFFFFFFF);
-		this->renderLine(fb, pos3.getX(), pos3.getY(), pos1.getX(), pos1.getY(), 0xFFFFFFFF);
+		this->renderLine(fb, batchContext, pos1.getX(), pos1.getY(), pos2.getX(), pos2.getY(), 0xFFFFFFFF);
+		this->renderLine(fb, batchContext, pos2.getX(), pos2.getY(), pos3.getX(), pos3.getY(), 0xFFFFFFFF);
+		this->renderLine(fb, batchContext, pos3.getX(), pos3.getY(), pos1.getX(), pos1.getY(), 0xFFFFFFFF);
 	}
 
-	void Renderer::renderTriangle(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& v1, const Vertex& v2, const Vertex& v3) {
+	void Renderer::renderIndexedTriangleWireframeBatch(const std::vector<Vertex>& vertices, const IntegerDataBuffer<3>& indices, size_t batchBegin, size_t batchSize) {
+		auto fb = this->frameBuffer.lock();
+		if (fb == nullptr) return;
+
+		RenderBatchContext<BUFFER_SIZE> renderBatchContext;
+
+		for (size_t i = batchBegin; i < batchBegin + batchSize; ++i) {
+			auto triangleIndices = indices.getVertexAttribute(i);
+
+			const auto& v1 = vertices[triangleIndices[0]];
+			const auto& v2 = vertices[triangleIndices[1]];
+			const auto& v3 = vertices[triangleIndices[2]];
+
+			auto surfaceNormal = this->getSurfaceNormal(v1, v2, v3);
+
+			// Backface culling
+			auto pos = lm::Vector3f(v2.getPosition().getXY(), v2.getPosition().getW());
+			auto dp = surfaceNormal * -pos;
+			if (dp > 0 && backfaceCullingEnabled) continue;
+
+			// Clipping
+			auto clipped = this->clipTriangle(v1, v2, v3);
+			if (clipped.first == 0) continue;
+			const auto& verts = clipped.second;
+
+			this->renderTriangleWireframe(fb, renderBatchContext, verts[0], verts[1], verts[2]);
+			if (clipped.first == 2) this->renderTriangleWireframe(fb, renderBatchContext, verts[0], verts[2], verts[3]);
+		}
+
+		// Render remaining pixels
+		auto& buffer = renderBatchContext.getBuffer();
+		for (int i = 0; i < renderBatchContext.getIndex(); ++i) {
+			auto& p = buffer[i];
+			if (zBuffer.get(p.x, p.y) > p.depth) {
+				fb->setPixel(p.x, p.y, p.color);
+				zBuffer.set(p.x, p.y, p.color);
+			}
+		}
+
+	}
+
+
+	// Triangle rendering
+
+	void Renderer::renderIndexedTriangleBatch(const std::vector<Vertex>& vertices, const IntegerDataBuffer<3>& indices, size_t batchBegin, size_t batchSize) {
+		auto fb = this->frameBuffer.lock();
+		if (fb == nullptr) return;
+		
+		RenderBatchContext<BUFFER_SIZE> renderBatchContext;
+		auto geometryShader = this->geometryShader.lock();
+		auto fragementShader = this->fragmentShader.lock();
+		
+		if (geometryShader != nullptr) renderBatchContext.gs =  geometryShader->clone();
+		if (fragementShader != nullptr)
+			renderBatchContext.fs = fragementShader->clone();
+		else
+			return; // Fragmentshader is missing
+		
+		for (size_t i = batchBegin; i < batchBegin + batchSize; ++i) {
+			auto triangleIndices = indices.getVertexAttribute(i);
+
+			std::reference_wrapper<const Vertex> v1 = vertices[triangleIndices[0]];
+			std::reference_wrapper<const Vertex> v2 = vertices[triangleIndices[1]];
+			std::reference_wrapper<const Vertex> v3 = vertices[triangleIndices[2]];
+
+			auto surfaceNormal = this->getSurfaceNormal(v1, v2, v3);
+
+			// Backface culling
+			auto pos = lm::Vector3f(v2.get().getPosition().getXY(), v2.get().getPosition().getW());
+			auto dp = surfaceNormal * -pos;
+			if (dp > 0 && backfaceCullingEnabled) continue;
+
+
+			auto& gs = renderBatchContext.gs;
+			// geometry shader
+			if (gs != nullptr) {
+				
+				gs->in_positions = { v1.get().getPosition(), v2.get().getPosition(), v3.get().getPosition() };
+				gs->in_colors = { v1.get().getColor(), v2.get().getColor(), v3.get().getColor() };
+				gs->in_surfaceNormal = lm::Vector3f(-surfaceNormal.getXY(), surfaceNormal.getZ());
+
+				gs->main();
+
+				const Vertex out1 = { gs->out_positions[0], gs->out_colors[0] };
+				const Vertex out2 = { gs->out_positions[1], gs->out_colors[1] };
+				const Vertex out3 = { gs->out_positions[2], gs->out_colors[2] };
+
+				gs->reset();
+
+				v1 = out1;
+				v2 = out2;
+				v3 = out3;
+
+			}
+
+			auto clipped = this->clipTriangle(v1, v2, v3);
+			if (clipped.first == 0) continue;
+			const auto& verts = clipped.second;
+
+			this->renderTriangle(fb, renderBatchContext, verts[0], verts[1], verts[2]);
+			if (clipped.first == 2) this->renderTriangle(fb, renderBatchContext, verts[0], verts[2], verts[3]);
+
+		}
+
+		// Render remaining pixels
+		{
+			std::lock_guard<std::mutex> lock(this->frameBufferLock);
+			auto& buffer = renderBatchContext.getBuffer();
+			for (int i = 0; i < renderBatchContext.getIndex(); ++i) {
+				auto& p = buffer[i];
+				if (zBuffer.get(p.x, p.y) > p.depth) {
+					fb->setPixel(p.x, p.y, p.color);
+					zBuffer.set(p.x, p.y, p.depth);
+				}
+			}
+		}
+
+	}
+
+	void Renderer::renderTriangle(const std::shared_ptr<pw::PixelWindow>& fb, RenderBatchContext<BUFFER_SIZE>& batchContext, const Vertex& v1, const Vertex& v2, const Vertex& v3) {
 		const int width = fb->getWidth();
 		const int height = fb->getHeight();
 		
@@ -66,15 +239,15 @@ namespace sr {
 		// if dy1 == dy2 => Flat Top
 		if(sorted[0].get().getPosition().getY() == sorted[1].get().getPosition().getY()){ // Flat bottom
 			if(sorted[0].get().getPosition().getX() < sorted[1].get().getPosition().getX())
-				this->renderFlatBottomTriangle(fb, sorted[0], sorted[1], sorted[2]);
+				this->renderFlatBottomTriangle(fb, batchContext, sorted[0], sorted[1], sorted[2]);
 			else
-				this->renderFlatBottomTriangle(fb, sorted[1], sorted[0], sorted[2]);
+				this->renderFlatBottomTriangle(fb, batchContext, sorted[1], sorted[0], sorted[2]);
 		}
 		else if (sorted[1].get().getPosition().getY() == sorted[2].get().getPosition().getY()) { // Flat top
 			if (sorted[1].get().getPosition().getX() < sorted[2].get().getPosition().getX())
-				this->renderFlatTopTriangle(fb, sorted[1], sorted[2], sorted[0]);
+				this->renderFlatTopTriangle(fb, batchContext, sorted[1], sorted[2], sorted[0]);
 			else
-				this->renderFlatTopTriangle(fb, sorted[2], sorted[1], sorted[0]);
+				this->renderFlatTopTriangle(fb, batchContext, sorted[2], sorted[1], sorted[0]);
 		}
 		else {
 
@@ -89,12 +262,12 @@ namespace sr {
 
 
 			if (sorted[1].get().getPosition().getX() < tv4.getPosition().getX()) {
-				this->renderFlatTopTriangle(fb, sorted[1], tv4, sorted[0]);
-				this->renderFlatBottomTriangle(fb, sorted[1], tv4, sorted[2]);
+				this->renderFlatTopTriangle(fb, batchContext, sorted[1], tv4, sorted[0]);
+				this->renderFlatBottomTriangle(fb, batchContext, sorted[1], tv4, sorted[2]);
 			}
 			else {
-				this->renderFlatTopTriangle(fb, tv4, sorted[1], sorted[0]);
-				this->renderFlatBottomTriangle(fb, tv4, sorted[1], sorted[2]);
+				this->renderFlatTopTriangle(fb, batchContext, tv4, sorted[1], sorted[0]);
+				this->renderFlatBottomTriangle(fb, batchContext, tv4, sorted[1], sorted[2]);
 			}
 
 
@@ -103,7 +276,7 @@ namespace sr {
 
 	}
 
-	void Renderer::renderFlatTopTriangle(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& base1, const Vertex& base2, const Vertex& target) {
+	void Renderer::renderFlatTopTriangle(const std::shared_ptr<pw::PixelWindow>& fb, RenderBatchContext<BUFFER_SIZE>& batchContext, const Vertex& base1, const Vertex& base2, const Vertex& target) {
 
 		float dy = target.getPosition().getY() - base1.getPosition().getY();
 
@@ -116,32 +289,11 @@ namespace sr {
 		const auto edge1 = base1 + ((float(yBegin) + 0.5f - base1.getPosition().getY()) * dir1);
 		const auto edge2 = base2 + ((float(yBegin) + 0.5f - base2.getPosition().getY()) * dir2);
 
-		this->renderFlatTriangle(fb, yBegin, yEnd, edge1, edge2, dir1, dir2);
-
-		/*float yBegin = std::ceilf(v3.getPosition().getY() - 0.5f);
-		float yEnd = std::ceilf(v1.getPosition().getY() - 0.5f);
-
-		float dy = (v1.getPosition().getY() - v3.getPosition().getY());
-
-		float mxBegin = (v1.getPosition().getX() - v3.getPosition().getX()) / dy;
-		float mxEnd = (v2.getPosition().getX() - v3.getPosition().getX()) / dy;
-
-
-		for (float y = yBegin; y < yEnd ; y += 1.0f) {
-			// render row
-			float xBegin = std::ceilf(v1.getPosition().getX() + (y - v1.getPosition().getY() + 0.5f) * mxBegin - 0.5f);
-			float xEnd = std::ceilf(v2.getPosition().getX() + (y - v1.getPosition().getY() + 0.5f) * mxEnd - 0.5f);
-			
-			if (xEnd < xBegin) std::swap(xBegin, xEnd);
-			
-			this->renderLine(fb, v1, v2, v3, y, xBegin, xEnd);
-
-		}*/
+		this->renderFlatTriangle(fb, batchContext, yBegin, yEnd, edge1, edge2, dir1, dir2);
 
 	}
 
-
-	void Renderer::renderFlatBottomTriangle(const std::shared_ptr<pw::PixelWindow>& fb, const Vertex& base1, const Vertex& base2, const Vertex& target) {
+	void Renderer::renderFlatBottomTriangle(const std::shared_ptr<pw::PixelWindow>& fb, RenderBatchContext<BUFFER_SIZE>& batchContext, const Vertex& base1, const Vertex& base2, const Vertex& target) {
 
 		float dy = base1.getPosition().getY() - target.getPosition().getY();
 
@@ -156,33 +308,11 @@ namespace sr {
 		const auto edge2 = target + ((float(yBegin) + 0.5f - target.getPosition().getY()) * dir2);
 
 
-		this->renderFlatTriangle(fb, yBegin, yEnd, edge1, edge2, dir1, dir2);
+		this->renderFlatTriangle(fb, batchContext, yBegin, yEnd, edge1, edge2, dir1, dir2);
 
-		/*float yBegin = std::ceilf(v1.getPosition().getY() - 0.5f);
-		float yEnd = std::ceilf(v3.getPosition().getY()- 0.5f);
-
-		float dy = (v1.getPosition().getY() - v3.getPosition().getY());
-
-		float mxBegin = (v1.getPosition().getX() - v3.getPosition().getX()) / dy;
-		float mxEnd = (v2.getPosition().getX() - v3.getPosition().getX()) / dy;
-
-
-		for (float y = yBegin; y < yEnd; y += 1.0f) {
-			// render row
-			float xBegin = std::ceilf(v1.getPosition().getX() + (y - v1.getPosition().getY() + 0.5f) * mxBegin - 0.5f);
-			float xEnd = std::ceilf(v2.getPosition().getX() + (y - v1.getPosition().getY() + 0.5f) * mxEnd - 0.5f);
-
-			if (xEnd < xBegin) std::swap(xBegin, xEnd);
-
-			this->renderLine(fb, v1, v2, v3, y, xBegin, xEnd);
-
-		}*/
 	}
 
-	void Renderer::renderFlatTriangle(const std::shared_ptr<pw::PixelWindow>& fb, int yBegin, int yEnd, Vertex edge1, Vertex edge2, const Vertex& dir1, const Vertex& dir2) {
-		auto fs = this->fragmentShader.lock();
-		if (fs == nullptr) return;
-		
+	void Renderer::renderFlatTriangle(const std::shared_ptr<pw::PixelWindow>& fb, RenderBatchContext<BUFFER_SIZE>& batchContext, int yBegin, int yEnd, Vertex edge1, Vertex edge2, const Vertex& dir1, const Vertex& dir2) {
 		for (int y = yBegin; y < yEnd ; ++y) {
 			int xBegin = std::max(int(std::ceil(edge1.getPosition().getX() - 0.5f)), 0);
 			int xEnd = std::min(int(std::ceil(edge2.getPosition().getX() - 0.5f)), fb->getWidth());
@@ -198,7 +328,8 @@ namespace sr {
 
 				// Z-Test
 				if (this->zBuffer.get(x, y) < line.getPosition().getZ()) continue;
-				this->zBuffer.set(x, y, line.getPosition().getZ());
+
+				auto& fs = batchContext.fs;
 
 				fs->in_color = line.getColor();
 				fs->in_position = line.getPosition();
@@ -206,7 +337,8 @@ namespace sr {
 
 				int color = this->convertColor(fs->out_color);
 				
-				fb->setPixel(x, y, color);
+				//fb->setPixel(x, y, color);
+				this->renderPixel(fb, batchContext, x, y, color, line.getPosition().getZ());
 				
 
 				line = line + xStep;
@@ -217,7 +349,6 @@ namespace sr {
 		}
 
 	}
-
 
 
 	Vertex Renderer::transformViewport(const Vertex& vert, int viewportWidth, int viewportHeight) const {
@@ -254,7 +385,6 @@ namespace sr {
 
 		return out;
 	}
-
 
 	int Renderer::convertColor(const lm::Vector4f& color) const {
 		auto c = 255.0f * color;
@@ -344,128 +474,73 @@ namespace sr {
 		this->geometryShader = gs;
 	}
 
-	void Renderer::renderLine(const Point2D& begin, const Point2D& end, int color) {
-		auto fb = this->frameBuffer.lock();
-		if (fb == nullptr) return;
-		this->renderLine(fb, begin.getX(), begin.getY(), end.getX(), end.getY(), color);
-	}
-
-	void Renderer::renderTriangleWireframe(const Point2D& p1, const Point2D& p2, const Point2D& p3, int color) {
-		auto fb = this->frameBuffer.lock();
-		if (fb == nullptr) return;
-		this->renderLine(fb, p1.getX(), p1.getY(), p2.getX(), p2.getY(), color);
-		this->renderLine(fb, p2.getX(), p2.getY(), p3.getX(), p3.getY(), color);
-		this->renderLine(fb, p3.getX(), p3.getY(), p1.getX(), p1.getY(), color);
-	}
-
-	void Renderer::renderTriangleWireframe(const Vertex& v1, const Vertex& v2, const Vertex& v3) {
-		auto fb = this->frameBuffer.lock();
-		if (fb == nullptr) return;
-		this->renderTriangleWireframe(fb, v1, v2, v3);
-	}
-
-	void Renderer::renderTriangle(const Vertex& v1, const Vertex& v2, const Vertex& v3) {
-		auto fb = this->frameBuffer.lock();
-		if (fb == nullptr) return;
-		this->renderTriangle(fb, v1, v2, v3);
-	}
-
-	void Renderer::render(RenderMode mode, const std::vector<Vertex>& vertices) {
-		auto fb = this->frameBuffer.lock();
-		if (fb == nullptr) return;
-		this->checkZBufferSize(); // Checks if framebuffer size and z-buffer size match
-
-		if (mode == RenderMode::TRIANGLE) {
-			// TODO Render Triangle (implemented later)
-		}
-		else if (mode == RenderMode::TRIANGLE_WIREFRAME) {
-			// Render Wireframe
-			// TODO
-			for (size_t i = 0; i < vertices.size(); i += 3) {
-				this->renderTriangleWireframe(fb, vertices[i], vertices[i + 1], vertices[i + 2]);
-			}
-		}
-	}
-
 	void Renderer::renderIndexed(RenderMode mode, const std::vector<Vertex>& vertices, const IntegerDataBuffer<3>& indices) {
 		auto fb = this->frameBuffer.lock();
 		if (fb == nullptr) return;
-		this->checkZBufferSize(); // Checks if framebuffer size and z-buffer size match
-		this->zBuffer.reset();
 
-		auto gs = this->geometryShader.lock();
 
 		if (mode == RenderMode::TRIANGLE) {
-			for (size_t i = 0; i < indices.getAttributeCount(); ++i) {
-				auto triangleIndices = indices.getVertexAttribute(i);
+			// Insert Multithreading
+			//this->renderIndexedTriangleBatch(vertices, indices, 0, indices.getAttributeCount());
 
-				std::reference_wrapper<const Vertex> v1 = vertices[triangleIndices[0]];
-				std::reference_wrapper<const Vertex> v2 = vertices[triangleIndices[1]];
-				std::reference_wrapper<const Vertex> v3 = vertices[triangleIndices[2]];
+			
+			int maxBatchSize = 2500;
+			int batches = indices.getAttributeCount() / maxBatchSize;
+			auto mainBatchSize = indices.getAttributeCount() - size_t(batches) * maxBatchSize;
 
-				auto surfaceNormal = this->getSurfaceNormal(v1, v2, v3);
-
-				// Backface culling
-				auto pos = lm::Vector3f(v2.get().getPosition().getXY(), v2.get().getPosition().getW());
-				auto dp = surfaceNormal * -pos;
-				if (dp > 0 && backfaceCullingEnabled) continue;
-
-				// geometry shader
-				if (gs != nullptr) {
-					gs->in_positions = { v1.get().getPosition(), v2.get().getPosition(), v3.get().getPosition() };
-					gs->in_colors = { v1.get().getColor(), v2.get().getColor(), v3.get().getColor() };
-					gs->in_surfaceNormal = lm::Vector3f(-surfaceNormal.getXY(), surfaceNormal.getZ());
-
-					gs->main();
-
-					const Vertex out1 = { gs->out_positions[0], gs->out_colors[0] };
-					const Vertex out2 = { gs->out_positions[1], gs->out_colors[1] };
-					const Vertex out3 = { gs->out_positions[2], gs->out_colors[2] };
-					
-					gs->reset();
-
-					v1 = out1;
-					v2 = out2;
-					v3 = out3;
-
+			auto batchRunner = [this, &vertices, &indices](int batchBegin, int batchSize) {
+				for (int i = 0; i < 1; ++i) {
+					this->renderIndexedTriangleBatch(vertices, indices, batchBegin, batchSize);
 				}
+			};
 
-				auto clipped = this->clipTriangle(v1, v2, v3);
-				if (clipped.first == 0) continue;
-				const auto& verts = clipped.second;
-
-				this->renderTriangle(fb, verts[0], verts[1], verts[2]);
-				if (clipped.first == 2) this->renderTriangle(fb, verts[0], verts[2], verts[3]);
-
+			for (int i = 0; i < batches; ++i) {
+				this->renderPool.addJob([i, maxBatchSize, &batchRunner] {
+					batchRunner(i * maxBatchSize, maxBatchSize);
+				});
 			}
+
+			batchRunner(batches * maxBatchSize, mainBatchSize); // Run the rest of the work on the main thread
+			while (this->renderPool.isBusy());
+			
+
 		}
 		else if (mode == RenderMode::TRIANGLE_WIREFRAME) {
-			// Render Wireframe
-			for (size_t i = 0; i < indices.getAttributeCount(); ++i) {
-				auto triangleIndices = indices.getVertexAttribute(i);
+			int maxBatchSize = 2500;
+			int batches = indices.getAttributeCount() / maxBatchSize;
+			auto mainBatchSize = indices.getAttributeCount() - size_t(batches) * maxBatchSize;
+			
+			auto batchRunner = [this, &vertices, &indices](int batchBegin, int batchSize) {
+				for (int i = 0; i < 1; ++i) {
+					this->renderIndexedTriangleWireframeBatch(vertices, indices, batchBegin, batchSize);
+				}
+			};
 
-				//std::cout << triangleIndices[0] << " " << vertices.size() << std::endl;
-				const auto& v1 = vertices[triangleIndices[0]];
-				const auto& v2 = vertices[triangleIndices[1]];
-				const auto& v3 = vertices[triangleIndices[2]];
-
-				auto surfaceNormal = this->getSurfaceNormal(v1, v2, v3);
-				
-				// Backface culling
-				auto pos = lm::Vector3f(v2.getPosition().getXY(), v2.getPosition().getW());
-				auto dp = surfaceNormal * -pos;
-				if (dp > 0 && backfaceCullingEnabled) continue;
-
-				// Clipping
-				auto clipped = this->clipTriangle(v1, v2, v3);
-				if (clipped.first == 0) continue;
-				const auto& verts = clipped.second;
-
-				this->renderTriangleWireframe(fb, verts[0], verts[1], verts[2]);
-				if(clipped.first == 2) this->renderTriangleWireframe(fb, verts[0], verts[2], verts[3]);
-
+			for (int i = 0; i < batches; ++i) {
+				this->renderPool.addJob([i, maxBatchSize, &batchRunner] {
+					batchRunner(i * maxBatchSize, maxBatchSize);
+				});
 			}
+
+			batchRunner(batches * maxBatchSize, mainBatchSize); // Run the rest of the work on the main thread
+			while (this->renderPool.isBusy());
+
 		}
+	}
+
+	void Renderer::beginFrame() {
+		auto fb = this->frameBuffer.lock();
+		if (fb == nullptr) return;
+		fb->beginFrame();
+		fb->setBackgroundColor(0x00000000);
+		this->checkZBufferSize();
+		this->zBuffer.reset();
+	}
+
+	void Renderer::endFrame() {
+		auto fb = this->frameBuffer.lock();
+		if (fb == nullptr) return;
+		fb->endFrame();
 	}
 
 }

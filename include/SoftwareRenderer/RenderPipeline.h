@@ -48,6 +48,8 @@ namespace sr {
 		void enableBackfaceCulling();
 		void disableBackfaceCulling();
 
+		void beginFrame();
+		void endFrame();
 
 		void draw(RenderMode mode, int vertexCount);
 
