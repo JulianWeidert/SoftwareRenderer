@@ -32,10 +32,10 @@ public:
 	}
 
 	void main() {
-		auto in_position = sr::vec4( this->getVertexAttribute<3>(0), 1.0f);
+		auto in_position = sr::vec4( 2 * this->getVertexAttribute<3>(0), 1.0f) - sr::vec4({ -0.5f,0,0,0 });
 		in_position = transformationMatrix * in_position;
 
-		in_position = in_position - sr::vec4({ 0, 0.5f, 1.0f, 0 });
+		in_position = in_position - sr::vec4({ -1.5f, 0, 1.5f, 0 });
 
 		out_position = projectionMatrix * in_position;
 		out_color = { 1,1,1,1 };
@@ -74,7 +74,7 @@ protected:
 
 		auto brightness = std::max(0.04f, this->in_surfaceNormal.getNormalized() * lightDir.getNormalized());
 
-		sr::vec4 outColor = { brightness , brightness, brightness, 1.0 };
+		sr::vec4 outColor = { brightness , 117.0f/255 * brightness, 24.0f/255 * brightness, 1.0 };
 
 		this->out_colors = { outColor, outColor, outColor };
 		
@@ -128,7 +128,7 @@ int main(){
 	// Load OBJ Model
 
 	std::string path = "../../../../examples/";
-	std::string fileName = "dragon.obj.txt";
+	std::string fileName = "pumpkin_tall_10k.obj.txt";
 
 	auto model = sr::loadObj(path + fileName);
 	if (!model.has_value()) return 0;
@@ -204,14 +204,15 @@ int main(){
 	std::cout << ind.size()/3 << std::endl;
 
 
-	float rad = 0;
+	float rad = 2.0f;
 
 	int frameCount = 0;
 
 	auto time = std::chrono::high_resolution_clock::now();
 	while (w1->isActive()) {
 		
-		//rad += 0.01f;
+		//rad += 0.001f;
+		//std::cout << rad << std::endl;
 
 		auto transMat = createRotationMatrixYAxis(rad);
 		vs->setTransformationMatrix(transMat);
