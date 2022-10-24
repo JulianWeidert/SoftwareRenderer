@@ -201,6 +201,8 @@ int main(){
 		vs->setProjectionMatrix(projMat);
 	});
 
+	std::cout << ind.size()/3 << std::endl;
+
 
 	float rad = 0;
 

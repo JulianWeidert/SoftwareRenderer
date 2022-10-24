@@ -56,12 +56,13 @@ namespace sr {
 		};
 
 		ThreadPool<16> renderPool;
-		//  FPS Full HD Dragon model
-		//  1 Thread : 21 FPS
-		//  2 Threads: 35 FPS
-		//  4 Threads: 50 FPS
-		//  8 Threads: 55 FPS
-		// 16 Threads: 56 FPS
+		//  FPS Full HD 
+		//				Dragon		Bunny
+		//  1 Thread :	21 FPS		95  FPS
+		//  2 Threads:	35 FPS		129 FPS
+		//  4 Threads:	50 FPS		142 FPS
+		//  8 Threads:	55 FPS		140 FPS
+		// 16 Threads:	56 FPS		138 FPS
 
 		std::weak_ptr<pw::PixelWindow> frameBuffer;
 		ZBuffer zBuffer;

@@ -484,7 +484,7 @@ namespace sr {
 			//this->renderIndexedTriangleBatch(vertices, indices, 0, indices.getAttributeCount());
 
 			
-			int maxBatchSize = 2500;
+			int maxBatchSize = 100;
 			int batches = indices.getAttributeCount() / maxBatchSize;
 			auto mainBatchSize = indices.getAttributeCount() - size_t(batches) * maxBatchSize;
 
