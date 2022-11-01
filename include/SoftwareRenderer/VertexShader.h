@@ -25,6 +25,7 @@ namespace sr {
 
 		vec4 out_position;
 		vec4 out_color;
+		vec3 out_normal;
 
 		virtual void main() = 0;
 		

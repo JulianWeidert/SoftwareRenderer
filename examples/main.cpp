@@ -3,6 +3,7 @@
 #include <vector>
 #include <chrono>
 #include <thread>
+#include <utility>
 
 #include <PixelWindow/PixelWindow.h>
 #include <LeptonMath/Matrix.h>
@@ -32,13 +33,19 @@ public:
 	}
 
 	void main() {
-		auto in_position = sr::vec4( 2 * this->getVertexAttribute<3>(0), 1.0f) - sr::vec4({ -0.5f,0,0,0 });
-		in_position = transformationMatrix * in_position;
+		//auto in_position = sr::vec4( 2 * this->getVertexAttribute<3>(0), 1.0f) - sr::vec4({ -0.5f,0,0,0 });
+		//in_position = transformationMatrix * in_position;
+		//in_position = in_position - sr::vec4({ -1.5f, 0, 1.5f, 0 });
+		
+		auto in_position = sr::vec4(this->getVertexAttribute<3>(0), 1.0f);
+		in_position = this->transformationMatrix * in_position;
+		in_position = in_position - sr::vec4({ 0, 0.5f, 1.5f, 0 });
 
-		in_position = in_position - sr::vec4({ -1.5f, 0, 1.5f, 0 });
+		auto in_normal = sr::vec4(this->getVertexAttribute<3>(1), 0);
+		in_normal = transformationMatrix * in_normal;
 
 		out_position = projectionMatrix * in_position;
-		out_color = { 1,1,1,1 };
+		out_normal = in_normal.getXYZ();
 	}
 
 	void setProjectionMatrix(const lm::Matrix4x4f& mat) {
@@ -51,9 +58,35 @@ public:
 };
 
 class TestFragmentShader : public sr::FragmentShader {
+private:
+	sr::vec3 lightPosition = { 300, 300, 300 };
 protected:
 	void main() override {
-		this->out_color = this->in_color;
+		this->out_color = sr::vec4(0.5f * (this->in_normal + sr::vec3({ 1,1,1 })), 1.0f);
+		//this->out_color = this->in_color;
+
+
+		// Phong shading
+
+		float kDiff = 1.0f;
+		float kSpec = 1.0f;
+		float kAmb = 1.0f;
+
+		auto viewDir = sr::vec3({ 0, 0, 1 });
+
+		auto lDir = (lightPosition - sr::vec3(-this->in_position.getXY(), this->in_position.getZ())).getNormalized();
+
+		auto reflected = 2 * (-lDir * this->in_normal) * this->in_normal + lDir;
+
+		float Idiffus = kDiff * lDir * this->in_normal;
+		float IAmbient = kAmb * 0.05f;
+		float ISepc = kSpec * std::pow(reflected * viewDir, 80.0f);
+
+		float IOut = std::min(std::max(IAmbient, Idiffus + IAmbient + ISepc), 1.0f);
+
+		this->out_color = sr::vec4(0.5f * (this->in_normal + sr::vec3({1, 1, 1})), 1.0f);
+
+		this->out_color = { IOut ,  IOut, IOut, 1.0 };
 	}
 
 	std::unique_ptr<sr::FragmentShader> clone() const override {
@@ -77,8 +110,9 @@ protected:
 		sr::vec4 outColor = { brightness , 117.0f/255 * brightness, 24.0f/255 * brightness, 1.0 };
 
 		this->out_colors = { outColor, outColor, outColor };
-		
+
 		this->out_positions = this->in_positions;
+		this->out_normals = this->in_normals;
 	}
 
 	std::unique_ptr<sr::GeometryShader> clone() const override {
@@ -117,7 +151,45 @@ lm::Matrix4x4f createProjectionMatrix(float near, int width, int height) {
 	return mat;
 }
 
+std::vector<float> generateNormals(const std::vector<float>& positions,const std::vector<int>& indices) {
+	std::vector<sr::vec3> normals;
+	normals.reserve(positions.size() / 3);
+	for (int i = 0; i < positions.size() / 3; ++i) normals.push_back({ 0,0,0 });
 
+	// for every triangle...
+	for (size_t tri = 0; tri < indices.size(); tri += 3) {
+		size_t ind1 = indices[tri];
+		size_t ind2 = indices[tri + 1];
+		size_t ind3 = indices[tri + 2];
+
+		sr::vec3 v1 = { positions[ind1 * 3], positions[ind1 * 3 + 1], positions[ind1 * 3 + 2] };
+		sr::vec3 v2 = { positions[ind2 * 3], positions[ind2 * 3 + 1], positions[ind2 * 3 + 2] };
+		sr::vec3 v3 = { positions[ind3 * 3], positions[ind3 * 3 + 1], positions[ind3 * 3 + 2] };
+
+		auto d1 = v2 - v1;
+		auto d2 = v3 - v1;
+
+		auto n = lm::cross(d1, d2);
+
+		normals[ind1] = normals[ind1] + n;
+		normals[ind2] = normals[ind2] + n;
+		normals[ind3] = normals[ind3] + n;
+
+	}
+
+	std::vector<float> retData;
+	retData.reserve(positions.size());
+
+
+	for (auto& normal : normals) {
+		auto n = normal.getNormalized();
+		retData.push_back(n.getX());
+		retData.push_back(n.getY());
+		retData.push_back(n.getZ());
+	}
+
+	return retData;
+}
 
 int main(){
 
@@ -128,7 +200,7 @@ int main(){
 	// Load OBJ Model
 
 	std::string path = "../../../../examples/";
-	std::string fileName = "pumpkin_tall_10k.obj.txt";
+	std::string fileName = "dragon.obj.txt";
 
 	auto model = sr::loadObj(path + fileName);
 	if (!model.has_value()) return 0;
@@ -171,6 +243,8 @@ int main(){
 	positions = pos;
 	indices = ind;
 
+	auto normals = generateNormals(positions, indices);
+
 	sr::RenderPipeline pipeline;
 	pipeline.setRenderSurface(w1);
 	
@@ -179,6 +253,9 @@ int main(){
 
 	auto positionBuffer = pipeline.bufferFloatData<3>(positions);
 	pipeline.storeBufferInBufferArray(0, positionBuffer);
+
+	auto normalBuffer = pipeline.bufferFloatData<3>(normals);
+	pipeline.storeBufferInBufferArray(1, normalBuffer);
 
 	auto indexBuffer = pipeline.createIndexBuffer(indices);
 	pipeline.bindIndexBuffer(indexBuffer);
@@ -204,14 +281,14 @@ int main(){
 	std::cout << ind.size()/3 << std::endl;
 
 
-	float rad = 2.0f;
+	float rad = 3.141592f/6;
 
 	int frameCount = 0;
 
 	auto time = std::chrono::high_resolution_clock::now();
 	while (w1->isActive()) {
 		
-		//rad += 0.001f;
+		rad += 0.01f;
 		//std::cout << rad << std::endl;
 
 		auto transMat = createRotationMatrixYAxis(rad);

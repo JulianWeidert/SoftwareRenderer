@@ -184,13 +184,14 @@ namespace sr {
 				
 				gs->in_positions = { v1.get().getPosition(), v2.get().getPosition(), v3.get().getPosition() };
 				gs->in_colors = { v1.get().getColor(), v2.get().getColor(), v3.get().getColor() };
+				gs->in_normals = { v1.get().getNormal(), v2.get().getNormal(), v3.get().getNormal() };
 				gs->in_surfaceNormal = lm::Vector3f(-surfaceNormal.getXY(), surfaceNormal.getZ());
 
 				gs->main();
 
-				const Vertex out1 = { gs->out_positions[0], gs->out_colors[0] };
-				const Vertex out2 = { gs->out_positions[1], gs->out_colors[1] };
-				const Vertex out3 = { gs->out_positions[2], gs->out_colors[2] };
+				const Vertex out1 = { gs->out_positions[0], gs->out_colors[0], gs->out_normals[0] };
+				const Vertex out2 = { gs->out_positions[1], gs->out_colors[1], gs->out_normals[1] };
+				const Vertex out3 = { gs->out_positions[2], gs->out_colors[2], gs->out_normals[2] };
 
 				gs->reset();
 
@@ -199,6 +200,7 @@ namespace sr {
 				v3 = out3;
 
 			}
+
 
 			auto clipped = this->clipTriangle(v1, v2, v3);
 			if (clipped.first == 0) continue;
@@ -233,7 +235,7 @@ namespace sr {
 		const auto tv3 = this->transformViewport(v3, width, height);
 
 		std::array<std::reference_wrapper<const Vertex>, 3> sorted = this->sortVerticesY(tv1, tv2, tv3);
-		
+
 		// generate 4th vertex
 
 		// if dy1 == dy2 => Flat Top
@@ -331,8 +333,10 @@ namespace sr {
 
 				auto& fs = batchContext.fs;
 
+
 				fs->in_color = line.getColor();
 				fs->in_position = line.getPosition();
+				fs->in_normal = line.getNormal();
 				fs->main();
 
 				int color = this->convertColor(fs->out_color);
@@ -363,6 +367,7 @@ namespace sr {
 		out.position[3] = pos.getW() * scale;
 
 		out.color = vert.color;
+		out.normal = vert.normal;
 
 		return out;
 	}
@@ -382,6 +387,7 @@ namespace sr {
 
 		out.position = alpha * v1.getPosition() + (1 - alpha) * v2.getPosition();
 		out.color = alpha * v1.getColor() + (1 - alpha) * v2.getColor();
+		out.normal = alpha * v1.getNormal() + (1 - alpha) * v2.getNormal();
 
 		return out;
 	}

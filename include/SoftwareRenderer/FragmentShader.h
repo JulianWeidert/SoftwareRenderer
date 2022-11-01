@@ -15,6 +15,7 @@ namespace sr{
 		// in
 		vec4 in_position;
 		vec4 in_color;
+		vec3 in_normal;
 
 		// out
 		vec4 out_color;

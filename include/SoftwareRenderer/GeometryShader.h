@@ -17,10 +17,12 @@ namespace sr {
 
 		std::array<vec4, 3> in_positions;
 		std::array<vec4, 3> in_colors;
+		std::array<vec3, 3> in_normals;
 		vec3 in_surfaceNormal;
 
 		std::array<vec4, 3> out_positions;
 		std::array<vec4, 3> out_colors;
+		std::array<vec3, 3> out_normals;
 
 		virtual void main() = 0;
 		virtual std::unique_ptr<GeometryShader> clone() const = 0;

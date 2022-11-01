@@ -81,7 +81,7 @@ namespace sr {
 		for (size_t i = 0; i < vertexCount; ++i) {
 			vs->vertexID = i;
 			vs->main();
-			transformedVertices.push_back({ vs->out_position, vs->out_color });
+			transformedVertices.push_back({ vs->out_position, vs->out_color, vs->out_normal });
 			vs->reset();
 		}
 

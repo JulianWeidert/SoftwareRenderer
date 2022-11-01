@@ -10,11 +10,16 @@ namespace sr {
 		return this->color;
 	}
 
+	const lm::Vector3f& Vertex::getNormal() const {
+		return this->normal;
+	}
+
 	Vertex operator+(const Vertex& v1, const Vertex& v2) {
 		Vertex res;
 
 		res.color = v1.color + v2.color;
 		res.position = v1.position + v2.position;
+		res.normal = v1.normal + v2.normal;
 
 		return res;
 	}
@@ -24,6 +29,7 @@ namespace sr {
 
 		res.color = v1.color - v2.color;
 		res.position = v1.position - v2.position;
+		res.normal = v1.normal - v2.normal;
 
 		return res;
 	}
@@ -33,6 +39,7 @@ namespace sr {
 
 		 res.color = -v.color;
 		 res.position = -v.position;
+		 res.normal = -v.normal;
 
 		 return res;
 	}
@@ -42,6 +49,7 @@ namespace sr {
 
 		res.color = scalar * v.color;
 		res.position = scalar * v.position;
+		res.normal = scalar * v.normal;
 
 		return res;
 	}
